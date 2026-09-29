@@ -24,6 +24,7 @@
   footer{max-width:1000px;margin:auto;padding:18px;color:var(--muted);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
   table{border-collapse:collapse;width:100%;font-size:14px;background:#fff}th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}th{background:#e7efeb}.scroll{overflow-x:auto}.actions{display:flex;gap:5px;flex-wrap:wrap;min-width:230px}.adminstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px}.stat b{display:block;font-size:22px}
   .adminnav{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.hidden{display:none!important}
+  .qr-image{display:block;max-width:min(300px,100%);max-height:360px;object-fit:contain;background:#fff;border:1px solid var(--line);padding:8px;margin:10px 0}.qr-placeholder{border:2px dashed var(--line);border-radius:10px;background:#fff;padding:24px;max-width:340px;text-align:center}
   @media(max-width:600px){main{padding:14px 12px 60px}.card{padding:14px}header{padding:12px}header small{display:none}.ticket{padding:16px}.code{letter-spacing:.04em}footer{padding:12px}.actions{min-width:180px}}
 </style>
 </head>
@@ -41,6 +42,10 @@
 (() => {
   'use strict';
   const KEY='tomonsai-2026-ipad-kiosk-v1';
+  const QR_DB='tomonsai-2026-paypay-qr-device-v1';
+  const QR_STORE='images';
+  const QR_ID='official-merchant-qr';
+  const QR_MAX_BYTES=2*1024*1024;
   const EVENT_DATE='2026-10-18';
   const DURATION=20;
   const DAY_CAP=20;
@@ -55,7 +60,7 @@
   const minutes=t=>Number(t.slice(0,2))*60+Number(t.slice(3));
   const before5=t=>{const m=minutes(t)-5;return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`};
   const defaultData=()=>({version:1,revision:0,pin:null,settings:{date:EVENT_DATE,price:PRICE,roomLimit:null,duration:DURATION,open:false,paypayEnabled:false,paypayChecks:{merchant:false,venue:false,paperQr:false,pfb:false},slots:TIMES.map((time,i)=>({id:String(i+1),time,capacity:4}))},tickets:[]});
-  let data=null,storageReady=false,screen='guest',selected=null,participants=1,children=false,guardians=0,safetyAcknowledged=false,bookingBusy=false,cashBusy=false,adminActive=false,adminLast=0,shownTicket=null,ticketDeadline=0,ticketTimer=null,loginFails=0,loginLockedUntil=0;
+  let data=null,storageReady=false,screen='guest',selected=null,participants=1,children=false,guardians=0,safetyAcknowledged=false,bookingBusy=false,cashBusy=false,adminActive=false,adminLast=0,shownTicket=null,ticketDeadline=0,ticketTimer=null,loginFails=0,loginLockedUntil=0,qrBusy=false,qrPreviewUrl=null,qrRenderToken=0;
   function valid(d){
     if(!d||d.version!==1||!Number.isInteger(d.revision)||d.revision<0||!(d.pin===null||d.pin&&/^[0-9a-f]{32}$/.test(d.pin.salt)&&/^[0-9a-f]{64}$/.test(d.pin.hash)))throw Error('保存形式が不正です');
     const s=d.settings;if(!s||!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||Number.isNaN(Date.parse(`${s.date}T00:00:00Z`))||new Date(`${s.date}T00:00:00Z`).toISOString().slice(0,10)!==s.date||!(s.price===null||Number.isInteger(s.price)&&s.price>=0&&s.price<=100000)||!(s.roomLimit===null||Number.isInteger(s.roomLimit)&&s.roomLimit>=1&&s.roomLimit<=30)||!(s.duration===null||Number.isInteger(s.duration)&&s.duration>=5&&s.duration<=120)||typeof s.open!=='boolean'||!Array.isArray(s.slots)||s.slots.length!==5)throw Error('設定が不正です');
@@ -74,7 +79,7 @@
   function update(fn){if(!storageReady)throw Error('保存が使えません');const fresh=read();if(fresh.revision!==data.revision){data=fresh;render();throw Error('別画面で記録が更新されました。内容を確認してやり直してください')};const next=structuredClone(fresh);fn(next);next.revision++;save(next);render()}
   function setAlert(message,kind='notice'){const a=$('alert');a.className=kind==='error'?'notice error':'notice';a.textContent=message;a.scrollIntoView({block:'nearest'})}
   function clearAlert(){$('alert').className='hidden';$('alert').textContent=''}
-  function show(which){screen=which;for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==which);$('admin-entry').classList.toggle('hidden',which==='admin'||which==='ticket'||which==='login');render()}
+  function show(which){if(which!=='admin')clearQrPreview();screen=which;for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==which);$('admin-entry').classList.toggle('hidden',which==='admin'||which==='ticket'||which==='login');render()}
   function activeCount(slotId){return data.tickets.filter(t=>t.slotId===slotId&&t.status!=='cancelled')}
   function roomUsed(slotId){return activeCount(slotId).reduce((n,t)=>n+t.participants+t.guardians,0)}
   function seatsUsed(slotId){return activeCount(slotId).reduce((n,t)=>n+t.participants,0)}
@@ -87,10 +92,10 @@
   function makeSalt(){if(!crypto?.getRandomValues)throw Error('安全なPIN設定ができません');const a=new Uint8Array(16);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
   async function hashPin(pin,salt){if(!crypto?.subtle)throw Error('この環境ではPIN保護を使えません。HTTPSで開いてください');const bytes=new TextEncoder().encode(`${salt}:${pin}`);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('')}
   function makeCode(){if(!crypto?.getRandomValues)throw Error('安全な番号生成ができません');for(let tries=0;tries<20;tries++){const a=new Uint8Array(8);crypto.getRandomValues(a);const code=Array.from(a,x=>ALPHABET[x%ALPHABET.length]).join('');if(!data.tickets.some(t=>t.code===code))return code}throw Error('番号を生成できません')}
-  function renderGuest(){const s=data.settings;const daily=dayRemaining();const closed=!s.open||!storageReady;const top=closed?'<div class="banner">ただいま新規受付を停止しています。スタッフにお声がけください。</div>':!paypayReady(data)?'<div class="banner">PayPay受付は準備中です。現金をご希望の場合は、空き枠についてスタッフにお声がけください。</div>':'';
-    const cards=s.slots.map(slot=>{const used=seatsUsed(slot.id),room=roomUsed(slot.id),rem=Math.max(0,Math.min(slot.capacity-used,daily)),roomRem=s.roomLimit===null?'未設定':Math.max(0,s.roomLimit-room);const why=reason(slot);const disabled=!!why||rem===0||s.roomLimit!==null&&roomRem===0;const label=why||rem===0||roomRem===0?'受付不可':'この枠を選ぶ';return `<div class="card ${selected===slot.id?'selected':''}"><div class="time">${esc(slot.time)}</div><div class="tiny muted">所要 ${DURATION} 分</div><div class="remain">残り ${rem} 名</div><div class="muted tiny">付き添いを含む在室余裕：${esc(roomRem)} 名</div><button type="button" data-select="${slot.id}" ${disabled?'disabled':''}>${label}</button>${why?`<div class="tiny muted">${esc(why)}</div>`:''}</div>`}).join('');
+  function renderGuest(){const s=data.settings;const daily=dayRemaining();const closed=!s.open||!storageReady;const top=closed?'<div class="banner">ただいま新規受付を停止しています。スタッフにお声がけください。</div>':!paypayReady(data)?'<div class="banner">現金は当日先着です。空き枠があれば、スタッフが現金を受け取って受付します。参加費は1人1,000円です。</div>':'';
+    const cards=s.slots.map(slot=>{const used=seatsUsed(slot.id),room=roomUsed(slot.id),rem=Math.max(0,Math.min(slot.capacity-used,daily)),roomRem=s.roomLimit===null?'未設定':Math.max(0,s.roomLimit-room);const why=reason(slot);const disabled=!!why||rem===0||s.roomLimit!==null&&roomRem===0;const cashOnly=!paypayReady(data)&&s.open&&storageReady&&s.roomLimit!==null&&!bookingWindow(slot)&&rem>0&&roomRem>0;const label=cashOnly?'現金はスタッフへ':disabled?'受付不可':'この枠を選ぶ';const note=cashOnly?'':why;return `<div class="card ${selected===slot.id?'selected':''}"><div class="time">${esc(slot.time)}</div><div class="tiny muted">所要 ${DURATION} 分</div><div class="remain">残り ${rem} 名</div><div class="muted tiny">付き添いを含む在室余裕：${esc(roomRem)} 名</div><button type="button" data-select="${slot.id}" ${disabled?'disabled':''}>${label}</button>${note?`<div class="tiny muted">${esc(note)}</div>`:''}</div>`}).join('');
     let form='';const slot=s.slots.find(x=>x.id===selected);if(slot&&!reason(slot)){const price=s.price===null?'未設定':yen(s.price);const available=Math.max(0,Math.min(4,slot.capacity-seatsUsed(slot.id),s.roomLimit-roomUsed(slot.id)-guardians,daily));if(available>0&&participants>available)participants=available;const guardianChoice=children?`<label class="field">見守りだけの保護者（体験しない方）<select id="guardian-count"><option value="1" ${guardians===1?'selected':''}>1名</option><option value="2" ${guardians===2?'selected':''}>2名</option><option value="3" ${guardians===3?'selected':''}>3名</option></select></label>`:'';const total=s.price===null?'未設定':yen(s.price*participants);form=`<div class="card" id="guest-form"><h2>${esc(slot.time)} の受付内容</h2><p>体験する人数を選択してください。見守りだけの保護者は参加人数に含めません。保護者も制作する場合は参加人数に含めてください。</p><div class="choice" role="group" aria-label="参加人数">${Array.from({length:available},(_,i)=>`<button type="button" class="${participants===i+1?'active':'secondary'}" data-people="${i+1}">${i+1}名</button>`).join('')}</div><label class="check" style="margin-top:18px"><input id="children" type="checkbox" ${children?'checked':''}><span>小学生以下の参加者がいる（保護者同伴が必要）</span></label>${guardianChoice}<div class="summary">${participants}名分 ${total} ／ 開始5分前の ${before5(slot.time)} までにスタッフへ</div><p class="muted">単価 ${price}。PayPayの支払いはご自身のスマートフォンで、会場に掲示された加盟店の紙QRコードから行ってください。このiPadにQRは表示しません。</p><div class="notice"><strong>体験時の注意</strong><br>標本やグリセリンを口に入れないでください。液体をこぼしたり容器を落としたりしたら、すぐスタッフに知らせてください。道具や封入作業はスタッフの説明に従ってください。小学生以下は保護者同伴です。</div><label class="check"><input id="safety-check" type="checkbox" ${safetyAcknowledged?'checked':''}><span>上の注意を読みました。参加前にスタッフから直接説明を受けます。</span></label><div class="row" style="margin-top:17px"><button type="button" id="reserve" ${bookingBusy||available<1?'disabled':''}>PayPay支払確認待ち番号を発行</button><button type="button" id="cancel-choice" class="secondary">枠選択に戻る</button></div></div>`}
-    $('guest').innerHTML=`<h1>時間を選んでください</h1><p>8号館B105。PayPayを選ぶ方は、ここで支払確認待ち番号を発行します。<strong>予約確定はスタッフがPayPay for Businessで入金を確認した後です。</strong> 現金は当日先着で、空きがある場合のみスタッフが受付します。</p>${top}<div class="notice">当日参加者 ${dayUsed()} / ${DAY_CAP} 名（残り ${daily} 名）</div><div class="grid">${cards}</div>${form}<div class="notice tiny">${s.open?'このiPadの受付記録です。別の端末とは同期しません。PayPayはスタッフの入金確認後に予約確定します。番号を控えられない方は、予約前にスタッフへお声がけください。行けなくなった場合は番号をスタッフへ伝えてください。':'枠時刻・定員・料金が確定するまで受付は始まりません。'} 同じ受付ページを複数のタブで開かないでください。</div>`;
+    $('guest').innerHTML=`<h1>空き枠を確認してください</h1><p>8号館B105。現金で参加する方は、空き枠を確認してスタッフにお声がけください。${paypayReady(data)?'<strong>PayPayはここで支払い待ち番号を発行し、スタッフの入金確認後に確定します。</strong>':''}</p>${top}<div class="notice">当日参加者 ${dayUsed()} / ${DAY_CAP} 名（残り ${daily} 名）</div><div class="grid">${cards}</div>${form}<div class="notice tiny">${s.open?'このiPadの受付記録です。別の端末とは同期しません。PayPayはスタッフの入金確認後に予約確定します。番号を控えられない方は、予約前にスタッフへお声がけください。行けなくなった場合は番号をスタッフへ伝えてください。':'枠時刻・定員・料金が確定するまで受付は始まりません。'} 同じ受付ページを複数のタブで開かないでください。</div>`;
   }
   function renderTicket(){if(!shownTicket)return;const t=shownTicket;const slot=data.settings.slots.find(x=>x.id===t.slotId);const left=Math.max(0,Math.ceil((ticketDeadline-Date.now())/1000));$('ticket').innerHTML=`<div class="ticket"><h1>PayPay支払確認待ち</h1><p>この番号の発行だけでは予約は確定していません</p><div class="code">${esc(t.code)}</div><div class="when">${EVENT_DATE} ${esc(slot.time)} 開始 · 所要 ${DURATION} 分</div><p>参加 ${t.participants}名 ／ 付き添い ${t.guardians}名 ／ お支払い ${yen(t.unitPrice*t.participants)}</p><div class="banner">会場に掲示されたPayPay加盟店の紙QRコードを、ご自身のスマートフォンで読み取り、${yen(t.unitPrice*t.participants)}を支払ってください。支払後は ${before5(slot.time)} までにこの番号をスタッフへ伝えてください。スタッフがPayPay for Businessの「取引完了」と金額を確認してから予約が確定します。</div><p>支払済みの画面を見せるだけでは確定しません。決済が未完了なら枠は一時的に埋まったままです。スタッフに取消を申し出てください。二重払いに気づいた場合もスタッフへ知らせてください。</p><p>番号を写真に撮るか、用意された紙に控えてください。画面は <strong id="countdown">${left}</strong> 秒後に消えます。再表示が必要な場合はスタッフへ番号と枠時刻を伝えてください。</p><div class="row" style="justify-content:center"><button type="button" id="extend" class="secondary">表示を30秒延長</button><button type="button" id="ticket-done">控えました</button></div></div>`}
   function renderLogin(){const setup=data.pin===null;$('login').innerHTML=`<div class="card" style="max-width:520px;margin:auto"><h1>${setup?'運営者PINの初期設定':'運営者ログイン'}</h1><p class="muted">${setup?'来場者に端末を渡す前に6桁の数字を設定してください。':'設定・入金確認・取消は運営者だけが操作してください。'}このPINは誤操作防止用で、強い認証ではありません。</p><label class="field">6桁のPIN<input id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="6" pattern="[0-9]{6}"></label><div class="row"><button id="pin-submit">${setup?'設定して開く':'開く'}</button><button id="login-cancel" class="secondary">戻る</button></div></div>`}
@@ -104,7 +109,8 @@
     return heading+`<form id="cash-form"><div class="row"><label class="field">参加する枠<select name="slotId" required><option value="">枠を選んでください</option>${options}</select></label><label class="field">体験する人数<input name="participants" type="number" inputmode="numeric" min="1" max="4" step="1" value="1" required></label><label class="field">見守りだけの同伴人数<input name="guardians" type="number" inputmode="numeric" min="0" max="3" step="1" value="0" required></label></div><label class="check"><input name="children" type="checkbox"><span>小学生以下の参加者がいる（同伴1名以上が必要）</span></label><p class="muted tiny">単価 ${yen(PRICE)}。定員には体験する人数のみを、在室上限には同伴者も含めます。支払前に枠・人数・金額を確認してください。</p><label class="check"><input name="cashReceived" type="checkbox" required><span>上記の人数分の現金を実際に受け取り、金額を確認した</span></label><button type="submit" ${cashBusy?'disabled':''}>空きを再確認して現金受付番号を発行</button></form>`;
   }
   function renderAdmin(){if(!adminActive){show('guest');return}const s=data.settings;const locked=data.tickets.length>0;const stats=s.slots.map(x=>`<div class="stat"><span>${esc(x.time)}</span><b>${seatsUsed(x.id)} / ${x.capacity}</b><span class="tiny">在室 ${roomUsed(x.id)} / ${s.roomLimit??'未設定'}</span></div>`).join('');const rows=data.tickets.slice().sort((a,b)=>a.slotId.localeCompare(b.slotId)||a.createdAt.localeCompare(b.createdAt)).map(t=>{const x=s.slots.find(y=>y.id===t.slotId);let acts='';if(t.status==='pending_paypay')acts+=`<button class="small" data-action="confirm-paypay" data-code="${t.code}">PayPay取引確認</button>`;if(t.status==='reserved'){if(!t.payment&&t.unitPrice>0)acts+=`<button class="small" data-action="pay-cash" data-code="${t.code}">現金確認</button>`;if(t.payment||t.unitPrice===0)acts+=`<button class="small" data-action="seat" data-code="${t.code}">着席確認</button>`}if(t.status==='seated')acts+=`<button class="small" data-action="complete" data-code="${t.code}">完了</button>`;if(['pending_paypay','reserved','seated'].includes(t.status))acts+=`<button class="small danger" data-action="cancel" data-code="${t.code}">取消</button>`;if(t.status==='cancelled'&&t.paymentIntent==='paypay'&&!t.payment)acts+=`<button class="small danger" data-action="late-paypay" data-code="${t.code}">後着決済確認</button>`;if(t.status==='cancelled'&&t.payment&&!t.payment.refundAt)acts+=`<button class="small danger" data-action="refund" data-code="${t.code}">実返金を確認</button>`;return `<tr><td><b>${t.code}</b></td><td>${esc(x.time)}</td><td>${t.participants}名<br>同伴 ${t.guardians}名</td><td>${esc(label(t))}</td><td>${t.payment?`${esc(t.payment.method==='cash'?'現金':t.payment.method==='paypay'?'PayPay':'旧QR')} ${yen(t.payment.amount)}${t.payment.method==='paypay'?`<br><span class="tiny">取引番号 ${esc(t.payment.transactionId)}</span>`:''}`:'—'}</td><td><div class="actions">${acts}</div></td></tr>`}).join('');const settingsRows=s.slots.map((x,i)=>`<div class="row"><label class="field">枠 ${i+1} 時刻<input name="time${i}" type="time" value="${esc(x.time)}" ${locked?'disabled':''}></label><label class="field">1枠の参加定員<input name="cap${i}" type="number" min="1" max="20" value="${x.capacity}" ${locked?'disabled':''}></label></div>`).join('');
-    $('admin').innerHTML=`<div class="row spread"><div><h1>運営者画面</h1><p>このiPad内の記録です。別端末の予約とは共有されません。</p></div><button id="admin-exit" class="secondary">受付画面に戻す</button></div><div class="banner">${s.open?'受付中':'新規受付は停止中'} ／ 料金 ${s.price===null?'未設定':yen(s.price)} ／ 当日参加者 ${dayUsed()}/${DAY_CAP}名 ／ 所要 ${DURATION} 分<br>料金は1人1,000円固定です。枠時刻・定員・室内人数を確認してください。</div><div class="adminnav"><button id="toggle-intake" ${!storageReady?'disabled':''}>${s.open?'受付を止める':'受付を開く'}</button><button id="export-json" class="secondary">JSON控えを保存</button><button id="export-csv" class="secondary">CSV控えを保存</button><button id="change-pin" class="secondary">PIN変更</button></div><div class="adminstats">${stats}</div>${cashForm()}<h2>番号札 ${data.tickets.length}件</h2><div class="scroll"><table><thead><tr><th>番号</th><th>開始</th><th>人数</th><th>状態</th><th>入金記録</th><th>操作</th></tr></thead><tbody>${rows||'<tr><td colspan="6">まだ発行していません</td></tr>'}</tbody></table></div><h2>設定</h2><div class="notice">${locked?'番号札発行後は時刻・定員・在室上限を変更できません。受付の開始・停止は可能です。':'時刻、各枠の参加定員（当日合計20名）、付き添いを含む在室上限を確認してください。'}</div><form id="settings-form"><label class="field">付き添いを含む1枠の在室上限<input name="roomLimit" type="number" min="1" max="30" value="${s.roomLimit??''}" placeholder="未設定" ${locked?'disabled':''}></label>${settingsRows}<button type="submit" ${locked?'disabled':''}>設定を保存</button></form><h2>PayPay受付設定</h2><div class="notice">PayPay加盟店契約と会場の承認を確認し、加盟店の紙QRを会場に掲示してください。スタッフはPayPay for Businessで取引を照合します。ここでは決済しません。加盟店QRやAPIの秘密情報はこのアプリに登録しません。</div><form id="paypay-form"><label class="check"><input name="merchant" type="checkbox" ${s.paypayChecks.merchant?'checked':''}><span>PayPay加盟店契約が有効</span></label><label class="check"><input name="venue" type="checkbox" ${s.paypayChecks.venue?'checked':''}><span>イベント会場での利用が承認済み</span></label><label class="check"><input name="paperQr" type="checkbox" ${s.paypayChecks.paperQr?'checked':''}><span>加盟店の公式紙QRを会場に設置済み</span></label><label class="check"><input name="pfb" type="checkbox" ${s.paypayChecks.pfb?'checked':''}><span>PayPay for Businessで取引を確認できる</span></label><label class="check"><input name="paypayEnabled" type="checkbox" ${s.paypayEnabled?'checked':''}><span>PayPayのセルフ受付を有効にする</span></label><button type="submit">PayPay設定を保存</button></form><h2>控えの復元</h2><div class="notice tiny">復元は現在の記録を丸ごと置き換えます。まずJSONを別端末に保存し、復元するファイルと時刻を確認してください。</div><input id="restore-file" type="file" accept="application/json,.json"><button type="button" id="restore" class="secondary">JSONから復元</button><p class="tiny muted">管理PINと端末内保存は強いセキュリティ対策ではありません。氏名・連絡先・カード情報は保存しません。現金/旧QR/PayPayの入金確認記録は端末に保存します。旧スタッフ用受付試作とは別台帳です。同時に使わないでください。</p>`;
+    $('admin').innerHTML=`<div class="row spread"><div><h1>運営者画面</h1><p>このiPad内の記録です。別端末の予約とは共有されません。</p></div><button id="admin-exit" class="secondary">受付画面に戻す</button></div><div class="banner">${s.open?'受付中':'新規受付は停止中'} ／ 料金 ${s.price===null?'未設定':yen(s.price)} ／ 当日参加者 ${dayUsed()}/${DAY_CAP}名 ／ 所要 ${DURATION} 分<br>料金は1人1,000円固定です。枠時刻・定員・室内人数を確認してください。</div><div class="adminnav"><button id="toggle-intake" ${!storageReady?'disabled':''}>${s.open?'受付を止める':'受付を開く'}</button><button id="export-json" class="secondary">JSON控えを保存</button><button id="export-csv" class="secondary">CSV控えを保存</button><button id="change-pin" class="secondary">PIN変更</button></div><div class="adminstats">${stats}</div>${cashForm()}<h2>番号札 ${data.tickets.length}件</h2><div class="scroll"><table><thead><tr><th>番号</th><th>開始</th><th>人数</th><th>状態</th><th>入金記録</th><th>操作</th></tr></thead><tbody>${rows||'<tr><td colspan="6">まだ発行していません</td></tr>'}</tbody></table></div><h2>設定</h2><div class="notice">${locked?'番号札発行後は時刻・定員・在室上限を変更できません。受付の開始・停止は可能です。':'時刻、各枠の参加定員（当日合計20名）、付き添いを含む在室上限を確認してください。'}</div><form id="settings-form"><label class="field">付き添いを含む1枠の在室上限<input name="roomLimit" type="number" min="1" max="30" value="${s.roomLimit??''}" placeholder="未設定" ${locked?'disabled':''}></label>${settingsRows}<button type="submit" ${locked?'disabled':''}>設定を保存</button></form><h2>PayPay受付設定</h2><div class="notice">PayPay加盟店契約と会場の承認を確認し、加盟店の紙QRを会場に掲示してください。スタッフはPayPay for Businessで取引を照合します。ここでは決済しません。公式QR画像を登録する場合は下の端末内保管欄だけに保存します。APIの秘密情報は登録しません。</div><form id="paypay-form"><label class="check"><input name="merchant" type="checkbox" ${s.paypayChecks.merchant?'checked':''}><span>PayPay加盟店契約が有効</span></label><label class="check"><input name="venue" type="checkbox" ${s.paypayChecks.venue?'checked':''}><span>イベント会場での利用が承認済み</span></label><label class="check"><input name="paperQr" type="checkbox" ${s.paypayChecks.paperQr?'checked':''}><span>加盟店の公式紙QRを会場に設置済み</span></label><label class="check"><input name="pfb" type="checkbox" ${s.paypayChecks.pfb?'checked':''}><span>PayPay for Businessで取引を確認できる</span></label><label class="check"><input name="paypayEnabled" type="checkbox" ${s.paypayEnabled?'checked':''}><span>PayPayのセルフ受付を有効にする</span></label><button type="submit">PayPay設定を保存</button></form><h2>PayPay公式QR画像（後日登録する場所）</h2><div class="notice">現金受付を使う間、この画像は不要です。後日、加盟店契約と会場利用が承認されたら、公式のQR画像をこのiPadに保存できます。<strong>来場者画面には表示されません。</strong> 実際の支払いにはPayPayの公式紙QRまたはPayPay for Businessの表示を使ってください。画像を保存してもPayPay受付は有効になりません。</div><div id="paypay-qr-status" class="tiny muted" role="status">画像の保存状態を確認しています…</div><div id="paypay-qr-placeholder" class="qr-placeholder">公式QR画像は未登録です</div><img id="paypay-qr-preview" class="qr-image hidden" alt="運営者用の公式QR画像プレビュー"><div class="row"><label class="field">公式QR画像をこのiPadに保存・差し替え<input id="paypay-qr-file" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg"></label><button id="paypay-qr-delete" type="button" class="secondary" disabled>保存画像を削除</button></div><p class="tiny muted">PNGまたはJPEG、2 MB以下。このiPadのブラウザ内だけに保存します。受付記録のJSON・CSVには含まれず、他の端末には移りません。Safariのサイトデータを消すと画像も消えます。</p><h2>控えの復元</h2><div class="notice tiny">復元は現在の記録を丸ごと置き換えます。まずJSONを別端末に保存し、復元するファイルと時刻を確認してください。</div><input id="restore-file" type="file" accept="application/json,.json"><button type="button" id="restore" class="secondary">JSONから復元</button><p class="tiny muted">管理PINと端末内保存は強いセキュリティ対策ではありません。氏名・連絡先・カード情報は保存しません。現金/旧QR/PayPayの入金確認記録は端末に保存します。旧スタッフ用受付試作とは別台帳です。同時に使わないでください。</p>`;
+    refreshQrAdmin();
   }
   function render(){for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==screen);if(screen==='guest')renderGuest();else if(screen==='ticket')renderTicket();else if(screen==='login')renderLogin();else if(screen==='admin')renderAdmin()}
   function guestReset(){clearAlert();shownTicket=null;selected=null;participants=1;children=false;guardians=0;safetyAcknowledged=false;clearInterval(ticketTimer);ticketTimer=null;show('guest')}
@@ -149,6 +155,102 @@
     if(!basic||!timesOk){setAlert('在室上限・枠を確認してください。枠は10:05～15:50内、所要時間と10分の入替を確保してください。','error');return}
     try{update(d=>{if(d.tickets.length)throw Error('番号札が発行済みです');d.settings={...d.settings,date:EVENT_DATE,price,roomLimit,duration,open:false,slots}});setAlert('設定を保存しました。受付はまだ停止中です。')}catch(e){setAlert(e.message,'error')}
   }
+  function openQrDb(){
+    return new Promise((resolve,reject)=>{
+      if(!window.indexedDB)return reject(Error('このブラウザでは画像保存を利用できません'));
+      let req;try{req=indexedDB.open(QR_DB,1)}catch(e){return reject(Error('画像保存を開けません'))}
+      req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(QR_STORE))req.result.createObjectStore(QR_STORE)};
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(Error('画像保存を開けません'));
+      req.onblocked=()=>reject(Error('別画面が画像保存を使用中です。閉じてやり直してください'));
+    });
+  }
+  async function qrTransaction(mode,action){
+    const db=await openQrDb();
+    return new Promise((resolve,reject)=>{
+      let result,done=false;
+      const finish=(error)=>{if(done)return;done=true;db.close();error?reject(error):resolve(result)};
+      let tx,req;try{tx=db.transaction(QR_STORE,mode);req=action(tx.objectStore(QR_STORE))}catch(e){db.close();reject(Error('画像保存を操作できません'));return}
+      req.onsuccess=()=>{result=req.result};
+      tx.oncomplete=()=>finish(null);
+      tx.onerror=()=>finish(Error('画像保存の読み書きに失敗しました'));
+      tx.onabort=()=>finish(Error('画像保存が中断されました'));
+    });
+  }
+  async function readQr(){
+    const row=await qrTransaction('readonly',store=>store.get(QR_ID));
+    if(row===undefined)return null;
+    if(!row||row.version!==1||!['image/png','image/jpeg'].includes(row.mime)||!(row.blob instanceof Blob)||row.blob.type!==row.mime||row.blob.size<1||row.blob.size>QR_MAX_BYTES||!Number.isInteger(row.width)||!Number.isInteger(row.height)||row.width<120||row.height<120||row.width>2048||row.height>2048)throw Error('保存されたQR画像が不正です。削除して登録し直してください');
+    return row;
+  }
+  function clearQrPreview(){
+    qrRenderToken++;
+    const img=$('paypay-qr-preview');if(img)img.removeAttribute('src');
+    if(qrPreviewUrl){URL.revokeObjectURL(qrPreviewUrl);qrPreviewUrl=null}
+  }
+  async function refreshQrAdmin(){
+    const token=++qrRenderToken;
+    if(qrPreviewUrl){URL.revokeObjectURL(qrPreviewUrl);qrPreviewUrl=null}
+    try{
+      const row=await readQr();
+      if(token!==qrRenderToken||screen!=='admin'||!adminActive)return;
+      $('paypay-qr-delete').disabled=!row||qrBusy;
+      $('paypay-qr-file').disabled=qrBusy;
+      $('paypay-qr-placeholder').classList.toggle('hidden',!!row);
+      $('paypay-qr-preview').classList.toggle('hidden',!row);
+      $('paypay-qr-status').textContent=row?`このiPadに保存済み：${row.mime==='image/png'?'PNG':'JPEG'}、${Math.ceil(row.blob.size/1024)} KB、${row.width} × ${row.height} px。来場者画面には非表示です。`:'未登録です。現金受付には影響しません。';
+      if(row){qrPreviewUrl=URL.createObjectURL(row.blob);$('paypay-qr-preview').src=qrPreviewUrl}
+    }catch(e){
+      if(token!==qrRenderToken||screen!=='admin'||!adminActive)return;
+      $('paypay-qr-status').textContent=e.message;
+      $('paypay-qr-delete').disabled=false;
+      $('paypay-qr-preview').classList.add('hidden');
+    }
+  }
+  async function decodeQrImage(file){
+    const url=URL.createObjectURL(file);
+    try{return await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve({width:img.naturalWidth,height:img.naturalHeight});img.onerror=()=>reject(Error('画像を開けません。PNGまたはJPEGを選んでください'));img.src=url})}
+    finally{URL.revokeObjectURL(url)}
+  }
+  async function authorizeQrUpload(){
+    if(adminActive&&screen==='admin'&&Date.now()-adminLast<=90000)return;
+    const pin=prompt('ファイル選択中に管理画面が閉じました。保存するには6桁の運営者PINを再入力してください。');
+    if(pin===null)throw Error('PIN再確認を取り消したため、画像を保存していません');
+    if(!/^\d{6}$/.test(pin)||!data.pin)throw Error('運営者PINが正しくありません。画像を保存していません');
+    const current=read();
+    if(await hashPin(pin,current.pin.salt)!==current.pin.hash)throw Error('運営者PINが正しくありません。画像を保存していません');
+    data=current;adminActive=true;touchAdmin();show('admin');
+  }
+  async function uploadQr(file){
+    if(qrBusy||!file)return;
+    qrBusy=true;
+    try{
+      await authorizeQrUpload();
+      if(!['image/png','image/jpeg'].includes(file.type)||file.size<1||file.size>QR_MAX_BYTES)throw Error('PNGまたはJPEGの2 MB以下の画像を選んでください');
+      const bytes=new Uint8Array(await file.slice(0,12).arrayBuffer());
+      const png=bytes.length>=8&&[137,80,78,71,13,10,26,10].every((x,i)=>bytes[i]===x);
+      const jpeg=bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+      const actual=png?'image/png':jpeg?'image/jpeg':null;
+      if(actual!==file.type)throw Error('ファイルの内容がPNGまたはJPEGと一致しません');
+      const dimensions=await decodeQrImage(file);
+      if(dimensions.width<120||dimensions.height<120||dimensions.width>2048||dimensions.height>2048)throw Error('画像の縦横は120～2048 pxにしてください');
+      if(!confirm('このiPad内の公式QR画像を保存しますか？既存画像があれば差し替えます。来場者画面には表示されません。'))return;
+      const row={version:1,mime:actual,blob:new Blob([file],{type:actual}),...dimensions,savedAt:stamp()};
+      await qrTransaction('readwrite',store=>store.put(row,QR_ID));
+      const saved=await readQr(),first=new Uint8Array(await file.arrayBuffer()),second=new Uint8Array(await saved.blob.arrayBuffer());
+      if(first.length!==second.length||first.some((x,i)=>x!==second[i]))throw Error('画像の保存後確認に失敗しました。再登録してください');
+      if(screen==='admin'&&adminActive)setAlert('公式QR画像をこのiPadに保存しました。来場者画面には表示されません。');
+    }catch(e){setAlert(`QR画像を保存できませんでした：${e.message}`,'error')}
+    finally{qrBusy=false;if(screen==='admin'&&adminActive)refreshQrAdmin()}
+  }
+  async function deleteQr(){
+    if(qrBusy||!adminActive||screen!=='admin')return;
+    if(!confirm('このiPad内の公式QR画像を削除しますか？受付記録には影響しません。'))return;
+    qrBusy=true;
+    try{await qrTransaction('readwrite',store=>store.delete(QR_ID));if(await readQr()!==null)throw Error('削除後の確認に失敗しました');setAlert('このiPad内の公式QR画像を削除しました')}
+    catch(e){setAlert(`QR画像を削除できませんでした：${e.message}`,'error')}
+    finally{qrBusy=false;refreshQrAdmin()}
+  }
   function download(name,content,type){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
   function exportCsv(){const header=['番号','開始','参加人数','同伴人数','小学生以下','状態','単価','請求額','支払予定','入金方法','入金額','PayPay取引番号','返金確認','発行日時'];const rows=data.tickets.map(t=>{const slot=data.settings.slots.find(x=>x.id===t.slotId);return [t.code,slot.time,t.participants,t.guardians,t.children?'はい':'いいえ',label(t),t.unitPrice,t.unitPrice*t.participants,t.paymentIntent||'',t.payment?.method||'',t.payment?.amount||0,t.payment?.transactionId||'',t.payment?.refundAt||'',t.createdAt]});const q=v=>`"${String(v).replaceAll('"','""')}"`;download(`稲門祭iPad受付_${EVENT_DATE}.csv`,'\ufeff'+[header,...rows].map(row=>row.map(q).join(',')).join('\r\n'),'text/csv;charset=utf-8')}
   async function restore(){touchAdmin();const file=$('restore-file')?.files?.[0];if(!file)return setAlert('JSONファイルを選択してください','error');let next;try{next=valid(JSON.parse(await file.text()));normalize(next);valid(next);if(dayUsed(next)>DAY_CAP)throw Error('当日の参加定員20名を超えています')}catch(e){setAlert(`復元ファイルが不正です：${e.message}`,'error');return}if(!confirm(`現在の ${data.tickets.length} 件を、ファイル内の ${next.tickets.length} 件に置き換えますか？\n現在の記録は戻せません。`))return;try{next.revision=data.revision+1;next.settings.open=false;next.settings.paypayEnabled=false;save(next);adminActive=false;guestReset();setAlert('復元しました。PINで再ログインして内容を確認してください')}catch(e){setAlert(`復元できませんでした：${e.message}`,'error')}}
@@ -158,8 +260,9 @@
   $('admin-entry').addEventListener('click',()=>{clearAlert();show('login')});
   $('login').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='pin-submit')doLogin();else if(b.id==='login-cancel')guestReset()});
   $('login').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doLogin()}});
+  $('admin').addEventListener('change',e=>{if(e.target.id==='paypay-qr-file'){const file=e.target.files?.[0];if(file)uploadQr(file)}});
   $('admin').addEventListener('submit',e=>{if(e.target.id==='settings-form')saveSettings(e);else if(e.target.id==='paypay-form')savePaypay(e);else if(e.target.id==='cash-form')cashRegister(e)});
-  $('admin').addEventListener('click',e=>{touchAdmin();const b=e.target.closest('button');if(!b)return;if(b.dataset.action)return adminAction(b.dataset.action,b.dataset.code);try{if(b.id==='admin-exit'){adminActive=false;guestReset()}else if(b.id==='toggle-intake'){update(d=>{if(!d.pin||d.settings.price===null||d.settings.roomLimit===null)throw Error('PIN・料金・在室上限を設定してください');d.settings.open=!d.settings.open});setAlert(data.settings.open?'受付を開始しました':'受付を停止しました')}else if(b.id==='export-json'){download(`稲門祭iPad受付_${EVENT_DATE}.json`,JSON.stringify(data,null,2),'application/json');setAlert('JSONの保存先を確認し、別端末にも控えてください')}else if(b.id==='export-csv'){exportCsv();setAlert('CSVを保存しました')}else if(b.id==='change-pin'){changePin()}else if(b.id==='restore'){restore()}}catch(err){setAlert(err.message,'error')}});
+  $('admin').addEventListener('click',e=>{touchAdmin();const b=e.target.closest('button');if(!b)return;if(b.dataset.action)return adminAction(b.dataset.action,b.dataset.code);try{if(b.id==='admin-exit'){adminActive=false;guestReset()}else if(b.id==='toggle-intake'){update(d=>{if(!d.pin||d.settings.price===null||d.settings.roomLimit===null)throw Error('PIN・料金・在室上限を設定してください');d.settings.open=!d.settings.open});setAlert(data.settings.open?'受付を開始しました':'受付を停止しました')}else if(b.id==='export-json'){download(`稲門祭iPad受付_${EVENT_DATE}.json`,JSON.stringify(data,null,2),'application/json');setAlert('JSONの保存先を確認し、別端末にも控えてください')}else if(b.id==='export-csv'){exportCsv();setAlert('CSVを保存しました')}else if(b.id==='change-pin'){changePin()}else if(b.id==='restore'){restore()}else if(b.id==='paypay-qr-delete'){deleteQr()}}catch(err){setAlert(err.message,'error')}});
   window.addEventListener('storage',e=>{if(e.key===KEY){try{data=read();storageReady=true;adminActive=false;guestReset();setAlert('記録が別画面で変わりました。内容を確認してください')}catch(err){storageReady=false;guestReset();setAlert('記録を読み込めません。受付を止めました','error')}}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&screen==='admin'){adminActive=false;guestReset()}else if(!document.hidden&&screen==='guest')renderGuest()});
   document.addEventListener('pointerdown',()=>{if(screen==='admin')touchAdmin()});
