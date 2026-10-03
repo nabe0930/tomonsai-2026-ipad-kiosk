@@ -1,5 +1,5 @@
-const CACHE='tomonsai-kiosk-prototype-v14';
-const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./payment-qr.png','./practice-qr.svg'];
+const CACHE='tomonsai-kiosk-prototype-v15';
+const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./payment-qr.png','./practice-qr.svg','./tomonsai-logo-2026.jpg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
