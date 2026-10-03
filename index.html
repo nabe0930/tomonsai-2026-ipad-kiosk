@@ -45,7 +45,7 @@
   <section id="login" class="hidden"></section>
   <section id="admin" class="hidden"></section>
 </main>
-<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v11</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
+<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v12</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
 <script>
 (() => {
   'use strict';
@@ -57,10 +57,12 @@
   const QR_STORE='images';
   const QR_ID='official-merchant-qr';
   const QR_MAX_BYTES=2*1024*1024;
+  const BUILTIN_QR='./payment-qr.png';
+  const BUILTIN_QR_EXPIRY='2026年10月17日 14:52';
   const localDay=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
   const exportName=ext=>`稲門祭iPad受付_${TEST_MODE?'練習_':''}${localDay()}.${ext}`;
   const DURATION=20;
-  const DAY_CAP=20;
+  const SLOT_CAP=20;
   const PRICE=1000;
   const BOOKING_MAX=4;
   const PAYPAY_CHECK_KEYS=['merchant','venue','paperQr','pfb'];
@@ -71,7 +73,7 @@
   const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(n);
   const stamp=()=>new Date().toISOString();
   const minutes=t=>Number(t.slice(0,2))*60+Number(t.slice(3));
-  const defaultData=()=>({version:1,purpose:TEST_MODE?'test':'live',revision:0,nextTicketNumber:1,pin:TEST_MODE?{salt:'00000000000000000000000000000000',hash:'44dec39e77e89b6a807177b97401f4c0240f39e4b2c658b45f45259583143414'}:null,settings:{date:localDay(),price:PRICE,duration:DURATION,open:TEST_MODE,paypayEnabled:false,paypayChecks:{merchant:false,venue:false,paperQr:false,pfb:false},slots:TIMES.map((time,i)=>({id:String(i+1),time,capacity:BOOKING_MAX}))},tickets:[]});
+  const defaultData=()=>({version:1,purpose:TEST_MODE?'test':'live',revision:0,nextTicketNumber:1,pin:TEST_MODE?{salt:'00000000000000000000000000000000',hash:'44dec39e77e89b6a807177b97401f4c0240f39e4b2c658b45f45259583143414'}:null,settings:{date:localDay(),price:PRICE,duration:DURATION,open:TEST_MODE,paypayEnabled:false,paypayChecks:{merchant:false,venue:false,paperQr:false,pfb:false},slots:TIMES.map((time,i)=>({id:String(i+1),time,capacity:SLOT_CAP}))},tickets:[]});
   let data=null,storageReady=false,screen='guest',adminTab='reception',selected=null,participants=1,safetyAcknowledged=false,bookingBusy=false,cashBusy=false,adminActive=false,adminLast=0,shownTicket=null,ticketDeadline=0,ticketTimer=null,loginFails=0,loginLockedUntil=0,qrBusy=false,qrPreviewUrl=null,qrRenderToken=0;
   function valid(d){
     if(TEST_MODE?d?.purpose!=='test':d?.purpose!==undefined&&d.purpose!=='live')throw Error('練習用と本番用の記録は相互に復元できません');
@@ -83,14 +85,14 @@
     if(!Array.isArray(d.tickets)||d.tickets.length>3000)throw Error('記録数が不正です');const codes=new Set(),transactions=new Set();for(const t of d.tickets){if(!t||!Array.from({length:5},(_,i)=>String(i+1)).includes(t.slotId)||typeof t.code!=='string'||!(/^\d{3,8}$/.test(t.code)||new RegExp(`^[${ALPHABET}]{8}$`).test(t.code))||codes.has(t.code)||!Number.isInteger(t.participants)||t.participants<1||t.participants>30||!(t.guardians===undefined||Number.isInteger(t.guardians)&&t.guardians>=0&&t.guardians<=30)||!(t.children===undefined||typeof t.children==='boolean')||!['pending_paypay','reserved','seated','completed','cancelled'].includes(t.status)||!Number.isInteger(t.unitPrice)||t.unitPrice<0||t.unitPrice>100000||typeof t.createdAt!=='string'||!Number.isFinite(Date.parse(t.createdAt))||!(t.payment===null||t.payment&&['cash','qr','paypay'].includes(t.payment.method)&&Number.isInteger(t.payment.amount)&&t.payment.amount>=0&&typeof t.payment.at==='string'&&Number.isFinite(Date.parse(t.payment.at))&&(t.payment.refundAt===null||typeof t.payment.refundAt==='string'&&Number.isFinite(Date.parse(t.payment.refundAt))))||t.payment?.method==='paypay'&&(!/^\d{20}$/.test(t.payment.transactionId)||t.payment.amount!==t.unitPrice*t.participants)||!(t.paymentIntent===undefined||t.paymentIntent==='paypay')||t.payment?.method==='paypay'&&t.paymentIntent!=='paypay'||t.paymentIntent==='paypay'&&['reserved','seated','completed'].includes(t.status)&&t.payment?.method!=='paypay'||t.status==='pending_paypay'&&(t.payment!==null||t.unitPrice!==1000||t.paymentIntent!=='paypay')){throw Error('番号札データが不正です')}if(t.payment?.method==='paypay'){if(transactions.has(t.payment.transactionId))throw Error('PayPay取引番号が重複しています');transactions.add(t.payment.transactionId)}codes.add(t.code)}
     if((s.open||d.tickets.length)&&(s.price===null||s.duration===null||d.pin===null))throw Error('受付条件が不正です');
     if(s.duration!==null&&s.slots.some((x,i)=>minutes(x.time)<605||minutes(x.time)+s.duration>950||(i>0&&minutes(x.time)<minutes(s.slots[i-1].time)+s.duration+10)))throw Error('枠間隔が不正です');
-    for(const slot of s.slots){const active=d.tickets.filter(t=>t.slotId===slot.id&&t.status!=='cancelled');if(active.reduce((n,t)=>n+t.participants,0)>slot.capacity)throw Error('復元ファイルが定員を超えます')}
+    for(const slot of s.slots){const active=d.tickets.filter(t=>t.slotId===slot.id&&t.status!=='cancelled');if(active.reduce((n,t)=>n+t.participants,0)>Math.min(slot.capacity,SLOT_CAP))throw Error('復元ファイルが定員を超えます')}
     return d;
   }
   // Old random codes can be eight digits. Only short numeric receipts seed the new sequence.
   function nextNumber(d){return Math.max(d.nextTicketNumber??1,1,...d.tickets.filter(t=>/^\d{3,7}$/.test(t.code)).map(t=>Number(t.code)+1))}
-  function normalize(d){let changed=false;const number=nextNumber(d);if(d.nextTicketNumber!==number){d.nextTicketNumber=number;changed=true}if(d.settings.price!==PRICE){d.settings.price=PRICE;d.settings.open=false;d.settings.paypayEnabled=false;changed=true}if(d.settings.duration!==DURATION){d.settings.duration=DURATION;changed=true}if(d.settings.slots.every(x=>x.capacity===3)){for(const x of d.settings.slots)x.capacity=4;changed=true}if(d.settings.paypayEnabled===undefined){d.settings.paypayEnabled=false;changed=true}if(d.settings.paypayChecks===undefined){d.settings.paypayChecks={merchant:false,venue:false,paperQr:false,pfb:false};changed=true}return changed}
+  function normalize(d){let changed=false;const number=nextNumber(d);if(d.nextTicketNumber!==number){d.nextTicketNumber=number;changed=true}if(d.settings.price!==PRICE){d.settings.price=PRICE;d.settings.open=false;d.settings.paypayEnabled=false;changed=true}if(d.settings.duration!==DURATION){d.settings.duration=DURATION;changed=true}for(const x of d.settings.slots){if(x.capacity!==SLOT_CAP){x.capacity=SLOT_CAP;changed=true}}if(d.settings.paypayEnabled===undefined){d.settings.paypayEnabled=false;changed=true}if(d.settings.paypayChecks===undefined){d.settings.paypayChecks={merchant:false,venue:false,paperQr:false,pfb:false};changed=true}return changed}
   function read(){const raw=localStorage.getItem(KEY),next=valid(raw?JSON.parse(raw):defaultData());if(raw&&normalize(next)){next.revision++;save(next)}return next}
-  function save(next){valid(next);const raw=JSON.stringify(next);localStorage.setItem(KEY,raw);if(localStorage.getItem(KEY)!==raw)throw Error('保存を確認できません');data=next;storageReady=true}
+  function save(next){valid(next);if(next.settings.slots.some(x=>x.capacity!==SLOT_CAP))throw Error('各回の定員は20名です');const raw=JSON.stringify(next);localStorage.setItem(KEY,raw);if(localStorage.getItem(KEY)!==raw)throw Error('保存を確認できません');data=next;storageReady=true}
   function init(){try{data=read();if(!localStorage.getItem(KEY))save(data);else storageReady=true}catch(e){storageReady=false;data=defaultData();setAlert('受付記録を読み込めません。新規受付を止めました。端末内の保存状態を確認してください。','error')}render()}
   function update(fn){if(!storageReady)throw Error('保存が使えません');const fresh=read();if(fresh.revision!==data.revision){data=fresh;render();throw Error('別画面で記録が更新されました。内容を確認してやり直してください')};const next=structuredClone(fresh);fn(next);next.revision++;save(next);render()}
   function setAlert(message,kind='notice'){const a=$('alert');a.className=kind==='error'?'notice error':'notice';a.textContent=message;a.scrollIntoView({block:'nearest'})}
@@ -99,16 +101,17 @@
   function activeCount(slotId){return data.tickets.filter(t=>t.slotId===slotId&&t.status!=='cancelled')}
   function seatsUsed(slotId){return activeCount(slotId).reduce((n,t)=>n+t.participants,0)}
   function dayUsed(d=data){return d.tickets.filter(t=>t.status!=='cancelled').reduce((n,t)=>n+t.participants,0)}
-  function dayRemaining(d=data){return Math.max(0,DAY_CAP-dayUsed(d))}
-  function reason(slot){if(!storageReady)return '保存を確認できません';const s=data.settings;if(!s.open)return '受付停止中';if(s.price===null||!data.pin)return '運営設定が未完了';if(dayRemaining()===0)return '本日の参加定員20名に達しました';return null}
-  function bookingOkFor(d,slot,p){if(!slot)throw Error('枠が見つかりません');if(!storageReady||!d.settings.open||d.settings.price===null||!d.pin)throw Error('受付停止中です');if(!Number.isInteger(p)||p<1||p>BOOKING_MAX||p>slot.capacity)throw Error('参加人数を確認してください');const active=d.tickets.filter(t=>t.slotId===slot.id&&t.status!=='cancelled');if(dayUsed(d)+p>DAY_CAP)throw Error('本日の参加定員20名を超えます');if(active.reduce((n,t)=>n+t.participants,0)+p>slot.capacity)throw Error('参加枠が満席です')}
+  function totalCapacity(d=data){return d.settings.slots.length*SLOT_CAP}
+  function dayRemaining(d=data){return Math.max(0,totalCapacity(d)-dayUsed(d))}
+  function reason(slot){if(!storageReady)return '保存を確認できません';const s=data.settings;if(!s.open)return '受付停止中';if(s.price===null||!data.pin)return '運営設定が未完了';return null}
+  function bookingOkFor(d,slot,p){if(!slot)throw Error('枠が見つかりません');if(!storageReady||!d.settings.open||d.settings.price===null||!d.pin)throw Error('受付停止中です');if(!Number.isInteger(p)||p<1||p>BOOKING_MAX||p>slot.capacity)throw Error('参加人数を確認してください');const active=d.tickets.filter(t=>t.slotId===slot.id&&t.status!=='cancelled');if(active.reduce((n,t)=>n+t.participants,0)+p>Math.min(slot.capacity,SLOT_CAP))throw Error('参加枠が満席です')}
   function makeSalt(){if(!crypto?.getRandomValues)throw Error('安全なPIN設定ができません');const a=new Uint8Array(16);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(16).padStart(2,'0')).join('')}
   async function hashPin(pin,salt){if(!crypto?.subtle)throw Error('この環境ではPIN保護を使えません。HTTPSで開いてください');const bytes=new TextEncoder().encode(`${salt}:${pin}`);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('')}
   function makeCode(d){let number=nextNumber(d);while(number<=99999999){const code=String(number).padStart(3,'0');if(!d.tickets.some(t=>t.code===code)){d.nextTicketNumber=number+1;return code}number++}throw Error('受付番号の上限に達しました')}
-  function renderGuest(){const s=data.settings;const daily=dayRemaining();const closed=!s.open||!storageReady;const top=closed?'<div class="banner">ただいま新規受付を停止しています。スタッフにお声がけください。</div>':'<div class="banner">時間と人数を選び、予約番号を発行してください。お支払いは参加前にスタッフへ。</div>';
-    const cards=s.slots.map(slot=>{const used=seatsUsed(slot.id),rem=Math.max(0,Math.min(slot.capacity-used,daily));const why=reason(slot);const disabled=!!why||rem===0;const label=disabled?'受付不可':'予約する';const note=why;return `<div class="card ${selected===slot.id?'selected':''}"><div class="slot-time"><span class="time">${esc(slot.time)}</span><small>開始</small></div><div class="slot-availability"><div class="remain">残り <b>${rem}</b> 名</div></div><button type="button" data-select="${slot.id}" ${disabled?'disabled':''}>${label}</button>${note?`<div class="slot-note tiny muted">${esc(note)}</div>`:''}</div>`}).join('');
-    let form='';const slot=s.slots.find(x=>x.id===selected);if(slot&&!reason(slot)){const price=s.price===null?'未設定':yen(s.price);const available=Math.max(0,Math.min(BOOKING_MAX,slot.capacity-seatsUsed(slot.id),daily));if(available>0&&participants>available)participants=available;const total=s.price===null?'未設定':yen(s.price*participants);form=`<div class="card" id="guest-form"><h2>${esc(slot.time)} の受付内容</h2><p>体験する人数を選択してください。付き添いの方は参加人数に含めません。付き添いの方も制作する場合は参加人数に含めてください。</p><div class="choice" role="group" aria-label="参加人数">${Array.from({length:BOOKING_MAX},(_,i)=>`<button type="button" class="${participants===i+1?'active':'secondary'}" data-people="${i+1}" aria-describedby="participant-availability" ${i+1>available?'disabled':''}>${i+1}名</button>`).join('')}</div><p id="participant-availability" class="tiny muted">1回の予約は最大${BOOKING_MAX}名までです。${available<BOOKING_MAX?`この枠の残りは${available}名です。人数分の空きがある時間をお選びください。`:''}</p><div class="summary">${participants}名分 ${total} ／ 受付番号をスタッフへ</div><p class="muted">単価 ${price}。ここでは予約だけを受け付けます。お支払いは参加前にスタッフへお願いします。</p><div class="notice safety-notice"><strong>体験時の注意事項</strong><p>保護者の皆さまも、お子さまと一緒にご確認ください。</p><ul><li>体験では基本的に安全な物質を使用していますが、標本や液体などを口に入れないようお願いいたします。</li><li>液体をこぼした場合などは、スタッフにお知らせください。</li><li>体験中は、スタッフの説明や指示に従ってください。</li></ul></div><label class="check"><input id="safety-check" type="checkbox" ${safetyAcknowledged?'checked':''}><span>上の注意を読みました。参加前にスタッフから直接説明を受けます。</span></label><div class="row" style="margin-top:17px"><button type="button" id="reserve" ${bookingBusy||available<1?'disabled':''}>予約番号を発行</button><button type="button" id="cancel-choice" class="secondary">枠選択に戻る</button></div></div>`}
-    $('guest').innerHTML=`<div class="guest-hero"><div><p class="eyebrow">ものづくり体験</p><h1>透明標本づくり</h1><p class="hero-copy">小さな標本を、手のひらに。<br>お好きな時間の空き枠をご確認ください。</p></div></div><div class="workshop-facts"><div class="fact"><span class="fact-label">参加費 / お一人</span><span class="fact-value">1,000<small>円</small></span></div><div class="fact"><span class="fact-label">体験時間</span><span class="fact-value">${DURATION}<small>分</small></span></div><div class="fact"><span class="fact-label">参加定員</span><span class="fact-value">${DAY_CAP}<small>名</small></span></div></div>${top}<p class="guest-help">付き添いは最大2名までです。</p><div class="schedule-heading"><h2>空き枠を確認してください</h2><span class="capacity-count">当日参加者 ${dayUsed()} / ${DAY_CAP} 名 · 残り <strong>${daily}</strong> 名</span></div><div class="schedule">${cards}</div>${form}<p class="guest-help">予約番号は写真に撮るか、紙に控えてください。参加前のお支払い・予約の取消しは、番号をスタッフへお伝えください。</p>`;
+  function renderGuest(){const s=data.settings;const closed=!s.open||!storageReady;const top=closed?'<div class="banner">ただいま新規受付を停止しています。スタッフにお声がけください。</div>':'<div class="banner">時間と人数を選び、予約番号を発行してください。お支払いは参加前にスタッフへ。</div>';
+    const cards=s.slots.map(slot=>{const used=seatsUsed(slot.id),rem=Math.max(0,slot.capacity-used);const why=reason(slot);const disabled=!!why||rem===0;const label=disabled?'受付不可':'予約する';const note=why;return `<div class="card ${selected===slot.id?'selected':''}"><div class="slot-time"><span class="time">${esc(slot.time)}</span><small>開始</small></div><div class="slot-availability"><div class="remain">残り <b>${rem}</b> 名</div></div><button type="button" data-select="${slot.id}" ${disabled?'disabled':''}>${label}</button>${note?`<div class="slot-note tiny muted">${esc(note)}</div>`:''}</div>`}).join('');
+    let form='';const slot=s.slots.find(x=>x.id===selected);if(slot&&!reason(slot)){const price=s.price===null?'未設定':yen(s.price);const available=Math.max(0,Math.min(BOOKING_MAX,slot.capacity-seatsUsed(slot.id)));if(available>0&&participants>available)participants=available;const total=s.price===null?'未設定':yen(s.price*participants);form=`<div class="card" id="guest-form"><h2>${esc(slot.time)} の受付内容</h2><p>体験する人数を選択してください。付き添いの方は参加人数に含めません。付き添いの方も制作する場合は参加人数に含めてください。</p><div class="choice" role="group" aria-label="参加人数">${Array.from({length:BOOKING_MAX},(_,i)=>`<button type="button" class="${participants===i+1?'active':'secondary'}" data-people="${i+1}" aria-describedby="participant-availability" ${i+1>available?'disabled':''}>${i+1}名</button>`).join('')}</div><p id="participant-availability" class="tiny muted">1回の予約は最大${BOOKING_MAX}名までです。${available<BOOKING_MAX?`この枠の残りは${available}名です。人数分の空きがある時間をお選びください。`:''}</p><div class="summary">${participants}名分 ${total} ／ 受付番号をスタッフへ</div><p class="muted">単価 ${price}。ここでは予約だけを受け付けます。お支払いは参加前にスタッフへお願いします。</p><div class="notice safety-notice"><strong>体験時の注意事項</strong><p>保護者の皆さまも、お子さまと一緒にご確認ください。</p><ul><li>体験では基本的に安全な物質を使用していますが、標本や液体などを口に入れないようお願いいたします。</li><li>液体をこぼした場合などは、スタッフにお知らせください。</li><li>体験中は、スタッフの説明や指示に従ってください。</li></ul></div><label class="check"><input id="safety-check" type="checkbox" ${safetyAcknowledged?'checked':''}><span>上の注意を読みました。参加前にスタッフから直接説明を受けます。</span></label><div class="row" style="margin-top:17px"><button type="button" id="reserve" ${bookingBusy||available<1?'disabled':''}>予約番号を発行</button><button type="button" id="cancel-choice" class="secondary">枠選択に戻る</button></div></div>`}
+    $('guest').innerHTML=`<div class="guest-hero"><div><p class="eyebrow">ものづくり体験</p><h1>透明標本づくり</h1><p class="hero-copy">小さな標本を、手のひらに。<br>お好きな時間の空き枠をご確認ください。</p></div></div><div class="workshop-facts"><div class="fact"><span class="fact-label">参加費 / お一人</span><span class="fact-value">1,000<small>円</small></span></div><div class="fact"><span class="fact-label">体験時間</span><span class="fact-value">${DURATION}<small>分</small></span></div><div class="fact"><span class="fact-label">各回の定員</span><span class="fact-value">${SLOT_CAP}<small>名</small></span></div></div>${top}<p class="guest-help">付き添いは最大2名までです。</p><div class="schedule-heading"><h2>空き枠を確認してください</h2><span class="capacity-count">各回20名まで</span></div><div class="schedule">${cards}</div>${form}<p class="guest-help">予約番号は写真に撮るか、紙に控えてください。参加前のお支払い・予約の取消しは、番号をスタッフへお伝えください。</p>`;
   }
   function renderTicket(){
     if(!shownTicket)return;
@@ -121,7 +124,7 @@
     const s=data.settings;
     const heading='<h2>予約なしの現金受付</h2><p class="muted">予約番号がある方は「受付」の一覧で入金を確認してください。</p>';
     if(!storageReady||!s.open||s.price===null)return heading+'<p>先に受付を開始してください。</p>';
-    const options=s.slots.map(slot=>{const seats=Math.max(0,Math.min(BOOKING_MAX,slot.capacity-seatsUsed(slot.id),dayRemaining()));return `<option value="${slot.id}" ${seats<1?'disabled':''}>${esc(slot.time)} · 残り${seats}名</option>`}).join('');
+    const options=s.slots.map(slot=>{const seats=Math.max(0,slot.capacity-seatsUsed(slot.id));return `<option value="${slot.id}" ${seats<1?'disabled':''}>${esc(slot.time)} · 残り${seats}名</option>`}).join('');
     return heading+`<form id="cash-form"><div class="row"><label class="field">時間<select name="slotId" required><option value="">時間を選択</option>${options}</select></label><label class="field">参加人数<input name="participants" type="number" inputmode="numeric" min="1" max="${BOOKING_MAX}" step="1" value="1" required></label></div><p>1人1,000円</p><label class="check"><input name="cashReceived" type="checkbox" required><span>${TEST_MODE?'現金の受領確認を練習する':'人数分の現金を受け取りました'}</span></label><button type="submit" ${cashBusy?'disabled':''}>入金済みで受付</button></form>`;
   }
   function statusText(t){
@@ -147,7 +150,7 @@
     const paid=t.payment?` · ${t.payment.method==='cash'?'現金':t.payment.method==='paypay'?'PayPay':'旧QR'}`:'';
     return `<article class="ticket-card" data-ticket-code="${esc(t.code)}"><div class="ticket-card-top"><strong class="ticket-number">${esc(t.code)}</strong><span class="status-badge ${!t.payment&&t.status==='reserved'?'unpaid':''}">${esc(statusText(t))}</span></div><p class="ticket-meta">${esc(slot.time)} · ${t.participants}名 · ${yen(t.unitPrice*t.participants)}${paid}</p>${t.payment?.method==='paypay'?`<p class="tiny muted">取引番号 ${esc(t.payment.transactionId)}</p>`:''}${actions?`<div class="ticket-actions">${actions}</div>`:''}</article>`;
   }
-  function readResetBackup(){const raw=localStorage.getItem(RESET_KEY);return raw?valid(JSON.parse(raw)):null}
+  function readResetBackup(){const raw=localStorage.getItem(RESET_KEY);if(!raw)return null;const backup=valid(JSON.parse(raw));normalize(backup);return valid(backup)}
   function hasResetBackup(){try{return !!readResetBackup()}catch{return false}}
   function writeResetBackup(d){
     valid(d);const raw=JSON.stringify(d);
@@ -169,7 +172,6 @@
     if(!adminActive||screen!=='admin')return;
     const backup=readResetBackup();
     if(!backup)throw Error('戻せる控えがありません');
-    if(dayUsed(backup)>DAY_CAP)throw Error('控えの参加人数が20名を超えています');
     if(!ask(`現在の予約 ${data.tickets.length}件を、前の控え ${backup.tickets.length}件に戻しますか？\n現在の予約も控えに残します。受付は停止します。`))return;
     update(d=>{
       if(JSON.stringify(readResetBackup())!==JSON.stringify(backup))throw Error('別画面で控えが変わりました。内容を確認してやり直してください');
@@ -182,11 +184,11 @@
   }
   function adminSettings(){
     const s=data.settings,locked=data.tickets.length>0;
-    const slots=s.slots.map((x,i)=>`<div class="row"><label class="field">時間 ${i+1}<input name="time${i}" type="time" value="${esc(x.time)}" ${locked?'disabled':''}></label><label class="field">定員<input name="cap${i}" type="number" min="1" max="20" value="${x.capacity}" ${locked?'disabled':''}></label></div>`).join('');
-    return `<h2>設定</h2><div class="settings-basics"><span>1人1,000円</span><span>20分</span><span>参加上限20名</span></div><div class="row"><button id="change-pin" class="secondary">PINを変更</button>${!TEST_MODE?'<button id="open-practice" class="secondary">練習を開く</button>':''}</div>
+    const slots=s.slots.map((x,i)=>`<div class="row"><label class="field">時間 ${i+1}<input name="time${i}" type="time" value="${esc(x.time)}" ${locked?'disabled':''}></label><span class="field">定員<strong>20名</strong></span></div>`).join('');
+    return `<h2>設定</h2><div class="settings-basics"><span>1人1,000円</span><span>20分</span><span>各回20名</span></div><div class="row"><button id="change-pin" class="secondary">PINを変更</button>${!TEST_MODE?'<button id="open-practice" class="secondary">練習を開く</button>':''}</div>
       <details class="admin-detail"><summary>時間・定員</summary>${locked?'<p class="muted">予約発行後は変更できません。</p>':''}<form id="settings-form">${slots}<button type="submit" ${locked?'disabled':''}>設定を保存</button></form></details>
       <details class="admin-detail"><summary>控えの保存・復元</summary><div class="row"><button id="export-json" class="secondary">控えを保存</button><button id="export-csv" class="secondary">一覧を保存（CSV）</button>${hasResetBackup()?'<button id="export-reset-backup" class="secondary">前の予約の控えを保存</button>':''}</div><p class="muted tiny">控えは別の端末にも保存してください。</p><label class="field">復元する控え<input id="restore-file" type="file" accept="application/json,.json"></label><button id="restore" class="secondary">控えから復元</button><p class="muted tiny">現在の予約を控えの内容に置き換えます。</p></details>
-      <details class="admin-detail" id="paypay-settings"><summary>PayPay・QR（将来用）</summary><p class="muted">予約時の決済はありません。加盟店の公式QRを会場で使用します。</p><form id="paypay-form">${[['merchant','加盟店契約'],['venue','会場利用の承認'],['paperQr','公式QRを会場に掲示'],['pfb','スタッフ端末で取引を確認']].map(([key,text])=>`<label class="check"><input name="${key}" type="checkbox" ${s.paypayChecks[key]?'checked':''}><span>${text}</span></label>`).join('')}<label class="check"><input name="paypayEnabled" type="checkbox" ${s.paypayEnabled?'checked':''}><span>PayPayの準備完了</span></label><button type="submit">PayPay設定を保存</button></form><h3>公式QR画像</h3><p class="muted tiny">この端末に保存します。来場者画面には表示しません。</p><div id="paypay-qr-status" class="tiny muted" role="status">保存状態を確認中…</div><div id="paypay-qr-placeholder" class="qr-placeholder">QR画像は未登録です</div><img id="paypay-qr-preview" class="qr-image hidden" alt="運営者用の公式QR画像"><label class="field">QR画像を選択<input id="paypay-qr-file" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg"></label><p class="tiny muted">PNG・JPEG、2 MB以下。控えには含まれません。</p><button id="paypay-qr-delete" class="secondary" disabled>QR画像を削除</button></details>`;
+      <details class="admin-detail" id="paypay-settings"><summary>PayPay・QR（将来用）</summary><p class="muted">登録したQRを確認・差し替えできます。</p><form id="paypay-form">${[['merchant','加盟店契約'],['venue','会場利用の承認'],['paperQr','公式QRを会場に掲示'],['pfb','スタッフ端末で取引を確認']].map(([key,text])=>`<label class="check"><input name="${key}" type="checkbox" ${s.paypayChecks[key]?'checked':''}><span>${text}</span></label>`).join('')}<label class="check"><input name="paypayEnabled" type="checkbox" ${s.paypayEnabled?'checked':''}><span>PayPayの準備完了</span></label><button type="submit">PayPay設定を保存</button></form><h3>QR画像</h3><p class="muted tiny">来場者画面には表示しません。</p><div id="paypay-qr-status" class="tiny muted" role="status">保存状態を確認中…</div><div id="paypay-qr-placeholder" class="qr-placeholder">QR画像を読み込めません</div><img id="paypay-qr-preview" class="qr-image hidden" alt="運営者用のQR画像"><label class="field">QR画像を選択<input id="paypay-qr-file" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg"></label><p class="tiny muted">PNG・JPEG、2 MB以下。控えには含まれません。</p><button id="paypay-qr-delete" class="secondary" disabled>差し替え画像を削除</button></details>`;
   }
   function renderAdmin(){
     if(!adminActive){show('guest');return}
@@ -195,8 +197,8 @@
     const sorted=data.tickets.slice().sort((a,b)=>a.slotId.localeCompare(b.slotId)||a.createdAt.localeCompare(b.createdAt));
     const needsAction=t=>['reserved','seated','pending_paypay'].includes(t.status)||(t.status==='cancelled'&&(t.payment&&!t.payment.refundAt||t.paymentIntent==='paypay'&&!t.payment));
     const current=sorted.filter(needsAction),history=sorted.filter(t=>!needsAction(t));
-    const slots=s.slots.map(x=>`<div><span>${esc(x.time)}</span><b>残り${Math.max(0,Math.min(x.capacity-seatsUsed(x.id),dayRemaining()))}名</b></div>`).join('');
-    const overview=`<div class="admin-overview"><div><span>参加者</span><strong>${dayUsed()}<small> / ${DAY_CAP}名</small></strong></div><div><span>残り</span><strong>${dayRemaining()}<small>名</small></strong></div><div><span>未払い</span><strong>${data.tickets.filter(t=>t.status==='reserved'&&!t.payment||t.status==='pending_paypay').length}<small>件</small></strong></div></div>`;
+    const slots=s.slots.map(x=>`<div><span>${esc(x.time)}</span><b>残り${Math.max(0,x.capacity-seatsUsed(x.id))}名</b></div>`).join('');
+    const overview=`<div class="admin-overview"><div><span>参加者合計</span><strong>${dayUsed()}<small> / ${totalCapacity()}名</small></strong></div><div><span>残り</span><strong>${dayRemaining()}<small>名</small></strong></div><div><span>未払い</span><strong>${data.tickets.filter(t=>t.status==='reserved'&&!t.payment||t.status==='pending_paypay').length}<small>件</small></strong></div></div>`;
     const reception=`${overview}<div class="admin-slots">${slots}</div><div class="row spread reception-heading"><h2>予約一覧</h2><div class="row"><button id="reset-records" class="secondary" ${!storageReady||!data.tickets.length?'disabled':''}>予約をリセット</button>${hasResetBackup()?'<button id="undo-reset" class="secondary">元に戻す</button>':''}</div></div><div class="ticket-list">${current.map(ticketCard).join('')||'<div class="empty-state">受付待ちの予約はありません。</div>'}</div>${history.length?`<details class="admin-detail"><summary>完了・取消 ${history.length}件</summary><div class="ticket-list">${history.map(ticketCard).join('')}</div></details>`:''}`;
     const content=adminTab==='cash'?cashForm():adminTab==='settings'?adminSettings():reception;
     $('admin').innerHTML=`<div class="admin-shell"><div class="admin-top"><div><h1>運営者画面</h1><span class="intake-state ${s.open?'is-open':''}">${s.open?'受付中':'受付停止中'}${TEST_MODE?' · 練習':''}</span></div><div class="admin-top-actions"><button id="toggle-intake" class="secondary" ${!storageReady?'disabled':''}>${s.open?'受付を止める':'受付を開始'}</button><button id="admin-exit">受付画面に戻る</button></div></div><nav class="admin-tabs" aria-label="運営者メニュー">${tabs.map(([tab,text])=>`<button type="button" data-admin-tab="${tab}" aria-pressed="${adminTab===tab}" class="${adminTab===tab?'active':'secondary'}">${text}</button>`).join('')}</nav><div class="admin-content">${content}</div></div>`;
@@ -260,8 +262,8 @@
     ev.preventDefault();touchAdmin();if(data.tickets.length)return setAlert('番号札発行後は設定を変更できません','error');
     const f=new FormData(ev.target);
     const price=PRICE,duration=DURATION;
-    const slots=Array.from({length:5},(_,i)=>({id:String(i+1),time:String(f.get(`time${i}`)||''),capacity:Number(f.get(`cap${i}`))}));
-    const basic=Number.isInteger(price)&&price>=0&&price<=100000&&slots.every(x=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x.time)&&Number.isInteger(x.capacity)&&x.capacity>=1&&x.capacity<=DAY_CAP);
+    const slots=Array.from({length:5},(_,i)=>({id:String(i+1),time:String(f.get(`time${i}`)||''),capacity:SLOT_CAP}));
+    const basic=Number.isInteger(price)&&price>=0&&price<=100000&&slots.every(x=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x.time)&&Number.isInteger(x.capacity)&&x.capacity===SLOT_CAP);
     const timesOk=basic&&slots.every((x,i)=>minutes(x.time)>=605&&minutes(x.time)+duration<=950&&(i===0||minutes(x.time)>=minutes(slots[i-1].time)+duration+10));
     if(!basic||!timesOk){setAlert('枠を確認してください。枠は10:05～15:50内、所要時間と10分の入替を確保してください。','error');return}
     try{update(d=>{if(d.tickets.length)throw Error('番号札が発行済みです');d.settings={...d.settings,price,duration,open:false,slots}});setAlert('設定を保存しました。受付はまだ停止中です。')}catch(e){setAlert(e.message,'error')}
@@ -308,10 +310,10 @@
       if(token!==qrRenderToken||screen!=='admin'||!adminActive||!$('paypay-qr-status'))return;
       $('paypay-qr-delete').disabled=!row||qrBusy;
       $('paypay-qr-file').disabled=qrBusy;
-      $('paypay-qr-placeholder').classList.toggle('hidden',!!row);
-      $('paypay-qr-preview').classList.toggle('hidden',!row);
-      $('paypay-qr-status').textContent=row?`このiPadに保存済み：${row.mime==='image/png'?'PNG':'JPEG'}、${Math.ceil(row.blob.size/1024)} KB、${row.width} × ${row.height} px。来場者画面には非表示です。`:'未登録です。現金受付には影響しません。';
-      if(row){qrPreviewUrl=URL.createObjectURL(row.blob);$('paypay-qr-preview').src=qrPreviewUrl}
+      $('paypay-qr-placeholder').classList.add('hidden');
+      $('paypay-qr-preview').classList.remove('hidden');
+      $('paypay-qr-status').textContent=row?`この端末に保存済み：${row.width} × ${row.height} px。`:`登録済みQR。有効期限：${BUILTIN_QR_EXPIRY}。開催前に差し替えてください。`;
+      if(row){qrPreviewUrl=URL.createObjectURL(row.blob);$('paypay-qr-preview').src=qrPreviewUrl}else $('paypay-qr-preview').src=BUILTIN_QR;
     }catch(e){
       if(token!==qrRenderToken||screen!=='admin'||!adminActive||!$('paypay-qr-status'))return;
       $('paypay-qr-status').textContent=e.message;
@@ -346,26 +348,26 @@
       if(actual!==file.type)throw Error('ファイルの内容がPNGまたはJPEGと一致しません');
       const dimensions=await decodeQrImage(file);
       if(dimensions.width<120||dimensions.height<120||dimensions.width>2048||dimensions.height>2048)throw Error('画像の縦横は120～2048 pxにしてください');
-      if(!ask('このiPad内の公式QR画像を保存しますか？既存画像があれば差し替えます。来場者画面には表示されません。'))return;
+      if(!ask('このiPad内のQR画像を保存しますか？既存画像があれば差し替えます。来場者画面には表示されません。'))return;
       const row={version:1,mime:actual,blob:new Blob([file],{type:actual}),...dimensions,savedAt:stamp()};
       await qrTransaction('readwrite',store=>store.put(row,QR_ID));
       const saved=await readQr(),first=new Uint8Array(await file.arrayBuffer()),second=new Uint8Array(await saved.blob.arrayBuffer());
       if(first.length!==second.length||first.some((x,i)=>x!==second[i]))throw Error('画像の保存後確認に失敗しました。再登録してください');
-      if(screen==='admin'&&adminActive)setAlert('公式QR画像をこのiPadに保存しました。来場者画面には表示されません。');
+      if(screen==='admin'&&adminActive)setAlert('QR画像をこのiPadに保存しました。来場者画面には表示されません。');
     }catch(e){setAlert(`QR画像を保存できませんでした：${e.message}`,'error')}
     finally{qrBusy=false;if(screen==='admin'&&adminActive)refreshQrAdmin()}
   }
   async function deleteQr(){
     if(qrBusy||!adminActive||screen!=='admin')return;
-    if(!ask('このiPad内の公式QR画像を削除しますか？受付記録には影響しません。'))return;
+    if(!ask('この端末で差し替えたQR画像を削除し、アプリ付属のQRに戻しますか？'))return;
     qrBusy=true;
-    try{await qrTransaction('readwrite',store=>store.delete(QR_ID));if(await readQr()!==null)throw Error('削除後の確認に失敗しました');setAlert('このiPad内の公式QR画像を削除しました')}
+    try{await qrTransaction('readwrite',store=>store.delete(QR_ID));if(await readQr()!==null)throw Error('削除後の確認に失敗しました');setAlert('アプリ付属のQRに戻しました')}
     catch(e){setAlert(`QR画像を削除できませんでした：${e.message}`,'error')}
     finally{qrBusy=false;refreshQrAdmin()}
   }
   function download(name,content,type){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
   function exportCsv(){const header=['番号','開始','参加人数','状態','単価','請求額','支払予定','入金方法','入金額','PayPay取引番号','返金確認','発行日時'];const rows=data.tickets.map(t=>{const slot=data.settings.slots.find(x=>x.id===t.slotId);return [t.code,slot.time,t.participants,label(t),t.unitPrice,t.unitPrice*t.participants,t.paymentIntent||'',t.payment?.method||'',t.payment?.amount||0,t.payment?.transactionId||'',t.payment?.refundAt||'',t.createdAt]});const q=v=>`"${String(v).replaceAll('"','""')}"`;download(exportName('csv'),'\ufeff'+[header,...rows].map(row=>row.map(q).join(',')).join('\r\n'),'text/csv;charset=utf-8')}
-  async function restore(){touchAdmin();const file=$('restore-file')?.files?.[0];if(!file)return setAlert('JSONファイルを選択してください','error');let next;try{next=valid(JSON.parse(await file.text()));normalize(next);valid(next);if(dayUsed(next)>DAY_CAP)throw Error('当日の参加定員20名を超えています')}catch(e){setAlert(`復元ファイルが不正です：${e.message}`,'error');return}if(!ask(`現在の ${data.tickets.length} 件を、ファイル内の ${next.tickets.length} 件に置き換えますか？\n現在の記録は戻せません。`))return;try{const fresh=read();if(fresh.revision!==data.revision)throw Error('別画面で記録が更新されました。内容を確認してやり直してください');next.nextTicketNumber=Math.max(nextNumber(fresh),nextNumber(next));next.revision=fresh.revision+1;next.settings.open=false;next.settings.paypayEnabled=false;save(next);adminActive=false;guestReset();setAlert('復元しました。PINで再ログインして内容を確認してください')}catch(e){setAlert(`復元できませんでした：${e.message}`,'error')}}
+  async function restore(){touchAdmin();const file=$('restore-file')?.files?.[0];if(!file)return setAlert('JSONファイルを選択してください','error');let next;try{next=valid(JSON.parse(await file.text()));normalize(next);valid(next)}catch(e){setAlert(`復元ファイルが不正です：${e.message}`,'error');return}if(!ask(`現在の ${data.tickets.length} 件を、ファイル内の ${next.tickets.length} 件に置き換えますか？\n現在の記録は戻せません。`))return;try{const fresh=read();if(fresh.revision!==data.revision)throw Error('別画面で記録が更新されました。内容を確認してやり直してください');next.nextTicketNumber=Math.max(nextNumber(fresh),nextNumber(next));next.revision=fresh.revision+1;next.settings.open=false;next.settings.paypayEnabled=false;save(next);adminActive=false;guestReset();setAlert('復元しました。PINで再ログインして内容を確認してください')}catch(e){setAlert(`復元できませんでした：${e.message}`,'error')}}
   $('guest').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.select){selected=b.dataset.select;participants=1;safetyAcknowledged=false;renderGuest();document.getElementById('guest-form')?.scrollIntoView({behavior:'smooth'})}else if(b.dataset.people){participants=Number(b.dataset.people);renderGuest();document.getElementById('guest-form')?.scrollIntoView({block:'nearest'})}else if(b.id==='cancel-choice'){selected=null;safetyAcknowledged=false;renderGuest()}else if(b.id==='reserve')book()});
   $('guest').addEventListener('change',e=>{if(e.target.id==='safety-check'){safetyAcknowledged=e.target.checked}});
   $('ticket').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='extend'){ticketDeadline=Math.min(ticketDeadline+30000,Date.now()+120000);renderTicket()}else if(b.id==='ticket-done')guestReset()});
