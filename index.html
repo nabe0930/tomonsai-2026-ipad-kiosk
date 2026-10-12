@@ -46,7 +46,7 @@
   <section id="login" class="hidden"></section>
   <section id="admin" class="hidden"></section>
 </main>
-<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v16</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
+<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v17</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
 <script>
 (() => {
   'use strict';
@@ -58,9 +58,10 @@
   const QR_STORE='images';
   const QR_ID='official-merchant-qr';
   const QR_MAX_BYTES=2*1024*1024;
-  const BUILTIN_QR='./payment-qr.png';
-  const BUILTIN_QR_EXPIRY='2026年10月17日 14:52';
-  const BUILTIN_QR_HASH='2175a1059de1a6ecdaad6836a49802a4772af1f57793dd18463eca7b5c157d49';
+  const BUILTIN_QR='./payment-qr.png?qr=eff521ed90ab';
+  const BUILTIN_QR_EXPIRY='2026年10月26日 10:08';
+  const BUILTIN_QR_HASH='eff521ed90aba492cc8c775610730e50261804a450950fc18ea7f8c5533cfa0a';
+  const RETIRED_BUILTIN_QR_HASH='2175a1059de1a6ecdaad6836a49802a4772af1f57793dd18463eca7b5c157d49';
   const PRACTICE_QR='./practice-qr.svg';
   const localDay=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
   const exportName=ext=>`稲門祭iPad受付_${TEST_MODE?'練習_':''}${localDay()}.${ext}`;
@@ -116,7 +117,8 @@
   function paypayQrReady(row,d=data){
     if(!d.settings.paypayEnabled)return false;
     const type=paypayQrType(d),hash=row?.sha256||(!row?BUILTIN_QR_HASH:null);
-    if(d.settings.paypayQrHash&&d.settings.paypayQrHash!==hash)return false;
+    const retiredBuiltin=!row&&type==='personal'&&d.settings.paypayQrHash===RETIRED_BUILTIN_QR_HASH;
+    if(d.settings.paypayQrHash&&d.settings.paypayQrHash!==hash&&!retiredBuiltin)return false;
     return type==='merchant'?row?.kind==='merchant':!row||row.kind===undefined||['personal','reference'].includes(row.kind);
   }
   function paymentReady(){return TEST_MODE||paypayReady&&data.settings.paypayEnabled}
@@ -133,7 +135,7 @@
   function renderTicket(){
     if(!shownTicket)return;
     const t=shownTicket,slot=data.settings.slots.find(x=>x.id===t.slotId),left=Math.max(0,Math.ceil((ticketDeadline-Date.now())/1000)),paypay=t.paymentChoice==='paypay',personal=ticketQrType(t)==='personal',amount=yen(t.unitPrice*t.participants);
-    const payment=paypay?`<section class="ticket-payment"><h2>${personal?'PayPayで送金':'PayPayでお支払い'}</h2><p class="payment-total">${amount}</p>${TEST_MODE?'<p class="notice">練習用QRです。実際のお支払いは不要です。</p>':''}${ticketQrError?`<p class="notice error">${esc(ticketQrError)}</p>`:ticketQrSource?`<img id="ticket-qr-preview" class="payment-qr" src="${esc(ticketQrSource)}" alt="${TEST_MODE?'練習用QRコード':personal?'PayPayのMyコード':'PayPay支払い用QRコード'}">`:'<p id="ticket-qr-loading" class="muted">QRを読み込んでいます…</p>'}<p>ご自身のスマートフォンのPayPayでQRを読み取り、${personal?'送金先を確認して':''}<strong>合計 ${amount}</strong> を${personal?'送って':'お支払い'}ください。</p>${personal&&t.participants>1?`<p class="tiny muted">金額が1,000円から変更できない場合は、1,000円を${t.participants}回送ってください。</p>`:''}<p>${personal?'送金':'お支払い'}後、この予約番号をスタッフへ。受領の確認後にご案内します。</p><button type="button" id="ticket-cash-switch" class="secondary">PayPayが使えない方は現金へ</button></section>`:`<section class="ticket-payment"><h2>現金でお支払い</h2><p class="payment-total">${amount}</p><p>体験前に、予約番号を伝えてスタッフへお支払いください。</p><p class="tiny muted">PayPayで既に支払った方は、現金を重ねて支払わずスタッフに確認してください。</p>${paymentReady()?'<button type="button" id="ticket-paypay-switch" class="secondary">PayPayに戻す</button>':''}</section>`;
+    const payment=paypay?`<section class="ticket-payment"><h2>${personal?'PayPayで送金':'PayPayでお支払い'}</h2><p class="payment-total">${amount}</p>${TEST_MODE?'<p class="notice">練習用QRです。実際のお支払いは不要です。</p>':''}${ticketQrError?`<p class="notice error">${esc(ticketQrError)}</p>`:ticketQrSource?`<img id="ticket-qr-preview" class="payment-qr" src="${esc(ticketQrSource)}" alt="${TEST_MODE?'練習用QRコード':personal?'PayPayのMyコード':'PayPay支払い用QRコード'}">`:'<p id="ticket-qr-loading" class="muted">QRを読み込んでいます…</p>'}<p>ご自身のスマートフォンのPayPayでQRを読み取り、${personal?'送金先を確認し、金額に':''}<strong>合計 ${amount}</strong> を${personal?'入力して送って':'お支払い'}ください。</p>${personal&&t.participants>1&&ticketQrSource?.startsWith('blob:')?`<p class="tiny muted">金額が1,000円から変更できない場合は、1,000円を${t.participants}回送ってください。</p>`:''}<p>${personal?'送金':'お支払い'}後、この予約番号をスタッフへ。受領の確認後にご案内します。</p><button type="button" id="ticket-cash-switch" class="secondary">PayPayが使えない方は現金へ</button></section>`:`<section class="ticket-payment"><h2>現金でお支払い</h2><p class="payment-total">${amount}</p><p>体験前に、予約番号を伝えてスタッフへお支払いください。</p><p class="tiny muted">PayPayで既に支払った方は、現金を重ねて支払わずスタッフに確認してください。</p>${paymentReady()?'<button type="button" id="ticket-paypay-switch" class="secondary">PayPayに戻す</button>':''}</section>`;
     $('ticket').innerHTML=`<div class="ticket"><h1>予約を受け付けました</h1><p>この番号を控えてください。お支払いはまだ完了していません。</p><div class="code">${esc(t.code)}</div><div class="when">${esc(slot.time)} 開始 · 所要 ${DURATION} 分</div><p>参加 ${t.participants}名 ／ 参加料金 ${amount}</p>${payment}<p>画面は <strong id="countdown">${left}</strong> 秒後に戻ります。予約の記録は残ります。</p><div class="row" style="justify-content:center"><button type="button" id="extend" class="secondary">表示を30秒延長</button><button type="button" id="ticket-done">番号を控えました</button></div></div>`;
   }
   async function switchTicketPayment(choice){if(!shownTicket||screen!=='ticket')return;try{const row=choice==='paypay'&&!TEST_MODE?await readQr():null;update(d=>{const t=d.tickets.find(x=>x.code===shownTicket.code);if(!t||t.status!=='reserved'||t.payment||t.paymentIntent)throw Error('この予約のお支払い方法は変更できません');if(choice==='paypay'&&!TEST_MODE&&!paypayQrReady(row,d))throw Error('PayPayを利用できません。スタッフにお知らせください');t.paypayQrType=ticketQrType(t);t.paymentChoice=choice;if(choice==='paypay')t.paypayQrType=paypayQrType(d)});shownTicket=data.tickets.find(t=>t.code===shownTicket.code);clearTicketQr();renderTicket();if(choice==='paypay')refreshTicketQr()}catch(e){setAlert(e.message,'error')}}
@@ -316,10 +318,13 @@
       tx.onabort=()=>finish(Error('画像保存が中断されました'));
     });
   }
-  async function readQr(){
+  async function readQr(includeRetired=false){
     const row=await qrTransaction('readonly',store=>store.get(QR_ID));
     if(row===undefined)return null;
     if(!row||!(row.kind===undefined||['personal','merchant','reference'].includes(row.kind))||!(row.sha256===undefined||/^[0-9a-f]{64}$/.test(row.sha256))||row.version!==1||!['image/png','image/jpeg'].includes(row.mime)||!(row.blob instanceof Blob)||row.blob.type!==row.mime||row.blob.size<1||row.blob.size>QR_MAX_BYTES||!Number.isInteger(row.width)||!Number.isInteger(row.height)||row.width<120||row.height<120||row.width>2048||row.height>2048)throw Error('保存されたQR画像が不正です。削除して登録し直してください');
+    // Only the exact previous bundled personal QR follows the new bundled image.
+    // Keep the stored row untouched; registration still checks the physical image.
+    if(!includeRetired&&row.kind!=='merchant'&&await qrHash(row.blob)===RETIRED_BUILTIN_QR_HASH)return null;
     return row;
   }
   function clearQrPreview(){
@@ -392,7 +397,7 @@
         if(dimensions.width<120||dimensions.height<120||dimensions.width>2048||dimensions.height>2048)throw Error('画像の縦横は120～2048 pxにしてください');
         row={version:1,kind,mime:actual,blob:new Blob([file],{type:actual}),...dimensions,savedAt:stamp()};
       }else{
-        row=await readQr();
+        row=await readQr(true);
         if(kind==='merchant'&&row?.kind!=='merchant')throw Error('加盟店の決済QR画像を選んでください');
         if(kind==='personal'&&row?.kind==='merchant')throw Error('個人のMyコード画像を選んでください');
         if(row)row={...row,kind,savedAt:stamp()};
@@ -403,16 +408,16 @@
       if(data.settings.paypayEnabled){update(d=>{d.settings.paypayEnabled=false});operation.revision=data.revision}
       if(row){
         await qrTransaction('readwrite',store=>store.put(row,QR_ID));
-        const saved=await readQr();
+        const saved=await readQr(true);
         if(saved?.kind!==kind||saved.sha256!==hash||await qrHash(saved.blob)!==hash)throw Error('QR画像の保存確認に失敗しました。再登録してください');
         imageSaved=true;
       }
-      const current=await readQr();
+      const current=await readQr(true);
       if(row?current?.sha256!==hash||await qrHash(current.blob)!==hash:current!==null)throw Error('別画面でQRが変わりました。確認してやり直してください');
       assertRegistrationCurrent(operation);
       update(d=>{if(d.revision!==operation.revision||JSON.stringify(d.pin)!==operation.pin)throw Error('登録中に記録が変わりました。確認してやり直してください');d.settings.paypayQrType=kind;d.settings.paypayQrHash=hash;d.settings.paypayEnabled=true});
       operation.revision=data.revision;
-      const finalQr=await readQr();assertRegistrationCurrent(operation);
+      const finalQr=await readQr(true);assertRegistrationCurrent(operation);
       if(!paypayQrReady(finalQr,read()))throw Error('PayPayの有効化を確認できません。登録をやり直してください');
       pendingPaypayFile=null;pendingPaypayKind=null;if(screen==='admin'&&adminActive)renderAdmin();
       setAlert('登録しました。基本はPayPay、使えない方は現金で受け付けます');
