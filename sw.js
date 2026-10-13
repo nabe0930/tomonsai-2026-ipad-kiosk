@@ -1,4 +1,4 @@
-const CACHE='tomonsai-kiosk-prototype-v19';
+const CACHE='tomonsai-kiosk-prototype-v20';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./payment-qr.png','./payment-qr.png?qr=eff521ed90ab','./practice-qr.svg','./tomonsai-logo-2026.jpg'];
 
 self.addEventListener('install',event=>{
@@ -29,13 +29,17 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||new URL(request.url).origin!==self.location.origin)return;
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
+      let response;
       try{
-        const response=await fetch(request);
-        if(response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone())}
-        return response;
-      }catch{
-        return await caches.match(request)||await caches.match(new URL('./index.html',self.registration.scope))||Response.error();
-      }
+        response=await fetch(request);
+        if(response.ok){
+          // A cache/quota failure must not hide a successfully fetched app.
+          try{const cache=await caches.open(CACHE);await cache.put(request,response.clone())}catch{}
+          return response;
+        }
+      }catch{}
+      // A temporary HTTP error is recoverable just like a lost connection.
+      return await caches.match(request)||await caches.match(new URL('./index.html',self.registration.scope))||response||Response.error();
     })());
     return;
   }
