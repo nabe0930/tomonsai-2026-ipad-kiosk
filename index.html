@@ -52,7 +52,7 @@
   <section id="login" class="hidden"></section>
   <section id="admin" class="hidden"></section>
 </main>
-<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v20</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
+<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v21</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
 <script>
 (() => {
   'use strict';
@@ -97,13 +97,14 @@
     if((s.open||d.tickets.length)&&(s.price===null||s.duration===null||d.pin===null))throw Error('受付条件が不正です');
     if(s.duration!==null&&s.slots.some((x,i)=>minutes(x.time)<605||minutes(x.time)+s.duration>950||(i>0&&minutes(x.time)<minutes(s.slots[i-1].time)+s.duration+10)))throw Error('枠間隔が不正です');
     for(const slot of s.slots){const active=d.tickets.filter(t=>t.slotId===slot.id&&t.status!=='cancelled');if(active.reduce((n,t)=>n+t.participants,0)>Math.min(slot.capacity,SLOT_CAP))throw Error('復元ファイルが定員を超えます')}
+    remoteValidateReceipts(d);
     return d;
   }
   // Old random codes can be eight digits. Only short numeric receipts seed the new sequence.
   function nextNumber(d){return Math.max(d.nextTicketNumber??1,1,...d.tickets.filter(t=>/^\d{3,7}$/.test(t.code)).map(t=>Number(t.code)+1))}
   function normalize(d){let changed=false;const number=nextNumber(d);if(d.nextTicketNumber!==number){d.nextTicketNumber=number;changed=true}if(d.settings.price!==PRICE){d.settings.price=PRICE;d.settings.open=false;d.settings.paypayEnabled=false;changed=true}if(d.settings.duration!==DURATION){d.settings.duration=DURATION;changed=true}for(const x of d.settings.slots){if(x.capacity!==SLOT_CAP){x.capacity=SLOT_CAP;changed=true}}if(d.settings.paypayQrType===undefined){d.settings.paypayQrType=d.settings.paypayEnabled&&PAYPAY_CHECK_KEYS.every(k=>d.settings.paypayChecks?.[k])?'merchant':'personal';if(d.settings.paypayQrType==='personal')d.settings.paypayEnabled=true;changed=true}if(d.settings.paypayEnabled===undefined){d.settings.paypayEnabled=true;changed=true}if(d.settings.paypayChecks===undefined){d.settings.paypayChecks={merchant:false,venue:false,paperQr:false,pfb:false};changed=true}return changed}
   function read(){const raw=localStorage.getItem(KEY),next=valid(raw?JSON.parse(raw):defaultData());if(raw&&normalize(next)){next.revision++;save(next)}return next}
-  function save(next){valid(next);if(next.settings.slots.some(x=>x.capacity!==SLOT_CAP))throw Error('各回の定員は20名です');const raw=JSON.stringify(next);localStorage.setItem(KEY,raw);if(localStorage.getItem(KEY)!==raw)throw Error('保存を確認できません');data=next;storageReady=true}
+  function save(next){remotePreserveReceipts(next);valid(next);if(next.settings.slots.some(x=>x.capacity!==SLOT_CAP))throw Error('各回の定員は20名です');const raw=JSON.stringify(next);localStorage.setItem(KEY,raw);if(localStorage.getItem(KEY)!==raw)throw Error('保存を確認できません');data=next;storageReady=true;remoteSaved()}
   function init(){try{data=read();if(!localStorage.getItem(KEY))save(data);else storageReady=true}catch(e){storageReady=false;data=defaultData();setAlert('受付記録を読み込めません。新規受付を止めました。端末内の保存状態を確認してください。','error')}render()}
   function update(fn){if(!storageReady)throw Error('保存が使えません');const fresh=read();if(fresh.revision!==data.revision){data=fresh;render();throw Error('別画面で記録が更新されました。内容を確認してやり直してください')};const next=structuredClone(fresh);fn(next);next.revision++;save(next);render()}
   function setAlert(message,kind='notice'){const a=$('alert');a.className=kind==='error'?'notice error':'notice';a.textContent=message;a.scrollIntoView({block:'nearest'})}
@@ -140,10 +141,15 @@
     $('guest').innerHTML=`<div class="guest-hero"><h1>学生注目！透明標本の封入体験するよ！</h1></div><div class="workshop-facts"><div class="fact"><span class="fact-label">参加費 / お一人</span><span class="fact-value">1,000<small>円</small></span></div><div class="fact"><span class="fact-label">体験時間</span><span class="fact-value">${DURATION}<small>分</small></span></div><div class="fact"><span class="fact-label">各回の定員</span><span class="fact-value">${SLOT_CAP}<small>名</small></span></div></div>${top}<section class="payment-policy" aria-label="予約と現金受付のご案内"><div class="paypay-rule"><h2>事前予約は、PayPayでの事前支払いのみです</h2><p>お席の予約には、事前にPayPayでのお支払いが必要です。</p></div><div class="cash-rule"><h2>現金払いは、各回に空席がある<span>場合に限ります</span></h2><p id="cash-guidance">${CASH_GUIDANCE}</p></div></section><p class="guest-help">付き添いは最大2名までです。</p><div class="schedule-heading"><h2>空き枠を確認してください</h2><span class="capacity-count">各回20名まで</span></div><div class="schedule">${cards}</div>${form}<p class="guest-help">予約番号は写真に撮るか、紙に控えてください。参加前のお支払い・予約の取消しは、番号をスタッフへお伝えください。</p>`;
   }
   function clearTicketQr(){ticketQrToken++;$('ticket-qr-preview')?.removeAttribute('src');if(ticketQrUrl)URL.revokeObjectURL(ticketQrUrl);ticketQrUrl=null;ticketQrSource=null;ticketQrError=null}
-  async function refreshTicketQr(){if(screen!=='ticket'||!shownTicket||shownTicket.paymentChoice!=='paypay')return;const code=shownTicket.code,token=++ticketQrToken;try{let source;if(TEST_MODE)source=PRACTICE_QR;else{const row=await readQr();if(!paypayQrReady(row)||ticketQrType(shownTicket)!==paypayQrType())throw Error('PayPayの設定が変わりました。予約番号をスタッフにお知らせください。');source=row?URL.createObjectURL(row.blob):BUILTIN_QR}if(token!==ticketQrToken||screen!=='ticket'||shownTicket?.code!==code){if(source.startsWith('blob:'))URL.revokeObjectURL(source);return}if(ticketQrUrl)URL.revokeObjectURL(ticketQrUrl);ticketQrUrl=source.startsWith('blob:')?source:null;ticketQrSource=source;renderTicket()}catch(e){if(token===ticketQrToken&&screen==='ticket'&&shownTicket?.code===code){ticketQrError=e.message;renderTicket()}}}
+  async function refreshTicketQr(){if(screen!=='ticket'||!shownTicket||shownTicket.status==='cancelled'||shownTicket.payment||shownTicket.paymentChoice!=='paypay')return;const code=shownTicket.code,token=++ticketQrToken;try{let source;if(TEST_MODE)source=PRACTICE_QR;else{const row=await readQr();if(!paypayQrReady(row)||ticketQrType(shownTicket)!==paypayQrType())throw Error('PayPayの設定が変わりました。予約番号をスタッフにお知らせください。');source=row?URL.createObjectURL(row.blob):BUILTIN_QR}if(token!==ticketQrToken||screen!=='ticket'||shownTicket?.code!==code){if(source.startsWith('blob:'))URL.revokeObjectURL(source);return}if(ticketQrUrl)URL.revokeObjectURL(ticketQrUrl);ticketQrUrl=source.startsWith('blob:')?source:null;ticketQrSource=source;renderTicket()}catch(e){if(token===ticketQrToken&&screen==='ticket'&&shownTicket?.code===code){ticketQrError=e.message;renderTicket()}}}
   function renderTicket(){
     if(!shownTicket)return;
     const t=shownTicket,slot=data.settings.slots.find(x=>x.id===t.slotId),left=Math.max(0,Math.ceil((ticketDeadline-Date.now())/1000)),paypay=t.paymentChoice==='paypay',personal=ticketQrType(t)==='personal',amount=yen(t.unitPrice*t.participants);
+    if(t.status==='cancelled'||t.payment){
+      const cancelled=t.status==='cancelled';
+      $('ticket').innerHTML=`<div class="ticket"><h1>${cancelled?'この予約は取消済みです':'入金を確認しました'}</h1><div class="code">${esc(t.code)}</div><div class="when">${esc(slot.time)} 開始 · 所要 ${DURATION} 分</div><p>参加 ${t.participants}名 ／ 参加料金 ${amount}</p><p>${cancelled?(t.payment?'入金記録が残っています。返金についてスタッフへご確認ください。':'この番号での参加枠は確保されていません。'):'お支払いは完了しています。開始時刻に、予約番号をスタッフへお伝えください。'}</p><p>画面は <strong id="countdown">${left}</strong> 秒後に戻ります。</p><button type="button" id="ticket-done">受付画面へ戻る</button></div>`;
+      return;
+    }
     const payment=paypay?`<section class="ticket-payment"><h2>${personal?'PayPayで送金':'PayPayでお支払い'}</h2><p class="payment-total">${amount}</p>${TEST_MODE?'<p class="notice">練習用QRです。実際のお支払いは不要です。</p>':''}${ticketQrError?`<p class="notice error">${esc(ticketQrError)}</p>`:ticketQrSource?`<img id="ticket-qr-preview" class="payment-qr" src="${esc(ticketQrSource)}" alt="${TEST_MODE?'練習用QRコード':personal?'PayPayのMyコード':'PayPay支払い用QRコード'}">`:'<p id="ticket-qr-loading" class="muted">QRを読み込んでいます…</p>'}<p>ご自身のスマートフォンのPayPayでQRを読み取り、${personal?'送金先を確認し、金額に':''}<strong>合計 ${amount}</strong> を${personal?'入力して送って':'お支払い'}ください。</p>${personal?`<div class="notice payment-message" id="paypay-message-guidance"><strong>送金メッセージに受付番号を入力してください</strong><p>入力する番号：<strong class="message-number">${esc(t.code)}</strong></p><p class="tiny">PayPayのメッセージでこの番号を送ってください。入金の確認に使います。</p></div>`:''}${personal&&t.participants>1&&ticketQrSource?.startsWith('blob:')?`<p class="tiny muted">金額が1,000円から変更できない場合は、1,000円を${t.participants}回送り、各送金のメッセージに同じ受付番号を入れてください。</p>`:''}<p>${personal?'送金':'お支払い'}後、この予約番号をスタッフへ。受領の確認後にご案内します。</p><p class="tiny muted">PayPayを使えない場合は、予約の取消しをスタッフへお伝えください。${CASH_GUIDANCE}</p></section>`:`<section class="ticket-payment"><h2>現金でお支払い</h2><p class="payment-total">${amount}</p><p>体験前に、予約番号を伝えてスタッフへお支払いください。</p><p class="tiny muted">PayPayで既に支払った方は、現金を重ねて支払わずスタッフに確認してください。</p>${paymentReady()?'<button type="button" id="ticket-paypay-switch" class="secondary">PayPayに戻す</button>':''}</section>`;
     $('ticket').innerHTML=`<div class="ticket"><h1>予約番号を発行しました</h1><p><strong>入金確認待ちです。</strong><br>未払いの方は、下の案内からお支払いください。<br>お支払い済みの方は、再度支払わず番号をスタッフへお伝えください。</p><div class="code">${esc(t.code)}</div><div class="when">${esc(slot.time)} 開始 · 所要 ${DURATION} 分</div><p>参加 ${t.participants}名 ／ 参加料金 ${amount}</p>${payment}<p>画面は <strong id="countdown">${left}</strong> 秒後に戻ります。予約の記録は残ります。</p><div class="row" style="justify-content:center"><button type="button" id="extend" class="secondary">表示を30秒延長</button><button type="button" id="ticket-done">番号を控えました</button></div></div>`;
   }
@@ -216,7 +222,7 @@
   function adminSettings(){
     const s=data.settings,locked=data.tickets.length>0;
     const slots=s.slots.map((x,i)=>`<div class="row"><label class="field">時間 ${i+1}<input name="time${i}" type="time" value="${esc(x.time)}" ${locked?'disabled':''}></label><span class="field">定員<strong>20名</strong></span></div>`).join('');
-    return `<h2>設定</h2><div class="settings-basics"><span>1人1,000円</span><span>20分</span><span>各回20名</span></div><div class="row"><button id="change-pin" class="secondary">PINを変更</button>${!TEST_MODE?'<button id="open-practice" class="secondary">練習を開く</button>':''}</div>
+    return remoteSettingsMarkup()+`<h2>設定</h2><div class="settings-basics"><span>1人1,000円</span><span>20分</span><span>各回20名</span></div><div class="row"><button id="change-pin" class="secondary">PINを変更</button>${!TEST_MODE?'<button id="open-practice" class="secondary">練習を開く</button>':''}</div>
       <details class="admin-detail"><summary>時間・定員</summary>${locked?'<p class="muted">予約発行後は変更できません。</p>':''}<form id="settings-form">${slots}<button type="submit" ${locked?'disabled':''}>設定を保存</button></form></details>
       <details class="admin-detail"><summary>控えの保存・復元</summary><div class="row"><button id="export-json" class="secondary">控えを保存</button><button id="export-csv" class="secondary">一覧を保存（CSV）</button>${hasResetBackup()?'<button id="export-reset-backup" class="secondary">前の予約の控えを保存</button>':''}</div><p class="muted tiny">控えは別の端末にも保存してください。</p><label class="field">復元する控え<input id="restore-file" type="file" accept="application/json,.json"></label><p id="restore-file-name" class="tiny muted">${pendingRestoreFile?`選択中：${esc(pendingRestoreFile.name)}`:''}</p><button id="restore" class="secondary">控えから復元</button><p class="muted tiny">現在の予約は控えに残します。PINは変わりません。</p></details>
       <details class="admin-detail" id="paypay-settings" open><summary>PayPay登録</summary><p>予約はPayPayのみ。現金は開始回の空席で受け付けます。</p><div id="paypay-qr-status" class="notice" role="status">登録状態を確認中…</div><form id="paypay-form"><img id="paypay-qr-preview" class="qr-image hidden" alt="現在使用するPayPayのQR"><div id="paypay-qr-placeholder" class="qr-placeholder">QRを読み込んでいます…</div><label class="field">QRの種類<select id="paypay-qr-kind"><option value="personal" ${(pendingPaypayKind||paypayQrType())==='personal'?'selected':''}>個人のMyコード（送金）</option><option value="merchant" ${(pendingPaypayKind||paypayQrType())==='merchant'?'selected':''}>加盟店の決済QR</option></select></label><label class="field">差し替えるQR画像<input id="paypay-qr-file" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" disabled></label><p id="paypay-file-name" class="tiny muted">${pendingPaypayFile?`選択中：${esc(pendingPaypayFile.name)}（未登録）`:'PNG・JPEG、2 MB以下。画像を選んでから登録を押してください。'}</p><div class="row"><button id="paypay-register" type="submit" disabled>QRを登録してPayPayを使う</button><button id="paypay-stop" type="button" class="secondary" ${s.paypayEnabled?'':'disabled'}>PayPayを停止</button></div></form><p class="tiny muted">付属Myコードの有効期限：${BUILTIN_QR_EXPIRY}。必要に応じてご自身で差し替えてください。</p><button id="paypay-qr-delete" type="button" class="secondary" disabled>登録QRを削除</button></details>`;
@@ -249,7 +255,7 @@
     const reception=`${overview}<div class="admin-slots">${slots}</div><div class="row spread reception-heading"><h2>予約一覧</h2><button id="export-json" class="secondary">控えを保存</button></div>${filters}<div id="ticket-results">${receptionLists()}</div><details class="admin-detail"><summary>予約のリセット・元に戻す</summary><div class="row"><button id="reset-records" class="secondary" ${!storageReady||!data.tickets.length?'disabled':''}>予約をリセット</button>${hasResetBackup()?'<button id="undo-reset" class="secondary">元に戻す</button>':''}</div><p class="tiny muted">直前の予約は控えに残ります。実際の支払い・返金は行いません。</p></details>`;
     const content=adminTab==='cash'?cashForm():adminTab==='settings'?adminSettings():reception;
     $('admin').innerHTML=`<div class="admin-shell"><div class="admin-top"><div><h1>運営者画面</h1><span class="intake-state ${s.open?'is-open':''}">${s.open?'受付中':'受付停止中'}${TEST_MODE?' · 練習':''}</span></div><div class="admin-top-actions"><button id="toggle-intake" class="secondary" ${!storageReady?'disabled':''}>${s.open?'受付を止める':'受付を開始'}</button><button id="admin-exit">受付画面に戻る</button></div></div><nav class="admin-tabs" aria-label="運営者メニュー">${tabs.map(([tab,text])=>`<button type="button" data-admin-tab="${tab}" aria-pressed="${adminTab===tab}" class="${adminTab===tab?'active':'secondary'}">${text}</button>`).join('')}</nav><div class="admin-content">${content}</div></div>`;
-    if(adminTab==='settings')refreshQrAdmin();else clearQrPreview();
+    if(adminTab==='settings'){refreshQrAdmin();remoteRefreshStatus()}else clearQrPreview();
   }
   function render(){for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==screen);if(screen==='guest')renderGuest();else if(screen==='ticket')renderTicket();else if(screen==='login')renderLogin();else if(screen==='admin')renderAdmin()}
   function guestReset(){adminNumber='';adminSlot='';adminStatus='';clearAlert();clearTicketQr();shownTicket=null;selected=null;participants=1;safetyAcknowledged=false;clearInterval(ticketTimer);ticketTimer=null;show('guest');refreshPaymentReady()}
@@ -542,7 +548,7 @@
       next.pin=structuredClone(fresh.pin);
       next.nextTicketNumber=Math.max(nextNumber(fresh),nextNumber(next));
       next.revision=fresh.revision+1;next.settings.open=false;next.settings.paypayEnabled=false;
-      valid(next);writeResetBackup(fresh);save(next);
+      remotePreserveReceipts(next);valid(next);writeResetBackup(fresh);save(next);
       pendingRestoreFile=null;adminActive=false;guestReset();setAlert('復元しました。これまでのPINで入り直して確認してください。前の記録は「元に戻す」で戻せます。');
     }catch(e){setAlert(`復元できませんでした：${e.message}`,'error')}
     finally{restoreBusy=false}
@@ -556,7 +562,7 @@
   $('admin').addEventListener('input',e=>{if(!adminActive||screen!=='admin')return;if(e.target.id==='ticket-search'){touchAdmin();adminNumber=e.target.value;refreshReceptionLists()}});
   $('admin').addEventListener('change',e=>{if(e.target.id==='restore-file'){stageRestoreFile(e.target.files?.[0]);return}if(e.target.id==='ticket-slot-filter'||e.target.id==='ticket-status-filter'){if(!adminActive||screen!=='admin')return;touchAdmin();if(e.target.id==='ticket-slot-filter')adminSlot=e.target.value;else adminStatus=e.target.value;refreshReceptionLists();return}if(e.target.id==='paypay-qr-file'){const kind=e.target.closest('form')?.querySelector('#paypay-qr-kind')?.value==='merchant'?'merchant':'personal';stagePaypayFile(e.target.files?.[0],kind)}else if(e.target.id==='paypay-qr-kind'){pendingPaypayKind=e.target.value;touchAdmin()}else if(e.target.form?.id==='cash-form'&&['slotId','participants'].includes(e.target.name)){for(const name of ['sessionStarted','cashReceived'])e.target.form.elements[name].checked=false}});
   $('admin').addEventListener('submit',e=>{e.preventDefault();if(!guardAdminAction())return;touchAdmin();if(e.target.id==='settings-form')saveSettings(e);else if(e.target.id==='paypay-form')savePaypay(e);else if(e.target.id==='cash-form')cashRegister(e)});
-  $('admin').addEventListener('click',e=>{if(!guardAdminAction())return;touchAdmin();const b=e.target.closest('button');if(!b||b.disabled)return;if(b.id==='clear-ticket-filters'){adminNumber='';adminSlot='';adminStatus='';renderAdmin();return}if(b.dataset.adminTab){clearAlert();clearQrPreview();adminTab=b.dataset.adminTab;renderAdmin();return}if(b.dataset.action)return adminAction(b.dataset.action,b.dataset.code);try{if(b.id==='admin-exit'){pendingRestoreFile=null;pendingPaypayFile=null;pendingPaypayKind=null;adminActive=false;guestReset()}else if(b.id==='toggle-intake'){update(d=>{if(!d.pin||d.settings.price===null)throw Error('PIN・料金を設定してください');d.settings.open=!d.settings.open});setAlert(data.settings.open?'受付を開始しました':'受付を停止しました')}else if(b.id==='open-practice'){const url=new URL(location.href);url.searchParams.set('mode','test');location.assign(url.href)}else if(b.id==='reset-records'){resetRecords()}else if(b.id==='undo-reset'){undoReset()}else if(b.id==='export-reset-backup'){const backup=readResetBackup();if(!backup)throw Error('控えがありません');download('リセット控え_'+exportName('json'),JSON.stringify(backup,null,2),'application/json')}else if(b.id==='export-json'){download(exportName('json'),JSON.stringify(data,null,2),'application/json');setAlert('JSONの保存先を確認し、別端末にも控えてください')}else if(b.id==='export-csv'){exportCsv();setAlert('CSVを保存しました')}else if(b.id==='change-pin'){changePin()}else if(b.id==='restore'){restore()}else if(b.id==='paypay-stop'){stopPaypay()}else if(b.id==='paypay-qr-delete'){deleteQr()}}catch(err){setAlert(err.message,'error')}});
+  $('admin').addEventListener('click',e=>{if(!guardAdminAction())return;touchAdmin();const b=e.target.closest('button');if(!b||b.disabled)return;if(b.id==='clear-ticket-filters'){adminNumber='';adminSlot='';adminStatus='';renderAdmin();return}if(b.dataset.adminTab){clearAlert();clearQrPreview();adminTab=b.dataset.adminTab;renderAdmin();return}if(b.dataset.action)return adminAction(b.dataset.action,b.dataset.code);try{if(b.id==='admin-exit'){pendingRestoreFile=null;pendingPaypayFile=null;pendingPaypayKind=null;adminActive=false;guestReset()}else if(b.id==='remote-start'){remoteStart()}else if(b.id==='remote-pair'){remotePair()}else if(b.id==='remote-disconnect'){remoteDisconnect()}else if(b.id==='toggle-intake'){update(d=>{if(!d.pin||d.settings.price===null)throw Error('PIN・料金を設定してください');d.settings.open=!d.settings.open});setAlert(data.settings.open?'受付を開始しました':'受付を停止しました')}else if(b.id==='open-practice'){const url=new URL(location.href);url.searchParams.set('mode','test');location.assign(url.href)}else if(b.id==='reset-records'){resetRecords()}else if(b.id==='undo-reset'){undoReset()}else if(b.id==='export-reset-backup'){const backup=readResetBackup();if(!backup)throw Error('控えがありません');download('リセット控え_'+exportName('json'),JSON.stringify(backup,null,2),'application/json')}else if(b.id==='export-json'){download(exportName('json'),JSON.stringify(data,null,2),'application/json');setAlert('JSONの保存先を確認し、別端末にも控えてください')}else if(b.id==='export-csv'){exportCsv();setAlert('CSVを保存しました')}else if(b.id==='change-pin'){changePin()}else if(b.id==='restore'){restore()}else if(b.id==='paypay-stop'){stopPaypay()}else if(b.id==='paypay-qr-delete'){deleteQr()}}catch(err){setAlert(err.message,'error')}});
   window.addEventListener('storage',e=>{if(e.key===KEY){try{data=read();storageReady=true;adminActive=false;guestReset();setAlert('記録が別画面で変わりました。内容を確認してください')}catch(err){storageReady=false;guestReset();setAlert('記録を読み込めません。受付を止めました','error')}}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)authEpoch++;if(document.hidden&&screen==='admin'){adminActive=false;guestReset()}else if(!document.hidden&&screen==='guest')renderGuest()});
   document.addEventListener('pointerdown',()=>{if(screen==='admin'&&guardAdminAction())touchAdmin()});
@@ -570,7 +576,150 @@
     bar.innerHTML='<div><strong>練習モード</strong><span>本番の受付記録には入りません。実際の支払いは不要です。</span><small>来場者の予約を試せます。運営者用PIN：000000（練習のみ）</small></div><a id="practice-exit">本番に戻る</a>';
     const url=new URL(location.href);url.searchParams.delete('mode');$('practice-exit').href=url.href;
   }
+  // iPad remains the only writer. Network failure never rolls back local intake.
+  const REMOTE_SERVER="https://tomonsai-2026-remote-admin.nabe0930-tomonsai.workers.dev";
+  const REMOTE_KEY=KEY+'-remote-v1';
+  const REMOTE_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const REMOTE_TOKEN=/^[A-Za-z0-9_-]{43}$/;
+  let remoteConfigError=false,remoteBusy=false,remoteQueued=false,remoteTimer=null,remoteState='未接続',remoteLastSent=null,remoteClock=null,remoteVisibilityEpoch=0;
+  function remoteValidateReceipts(d){
+    if(d.remoteReceipts===undefined)return;
+    if(!Array.isArray(d.remoteReceipts)||d.remoteReceipts.length>500)throw Error('共有操作の記録が不正です');
+    const ids=new Set();
+    for(const r of d.remoteReceipts){const key=r?.roomId+':'+r?.id;if(!r||!REMOTE_UUID.test(r.roomId)||!REMOTE_UUID.test(r.id)||ids.has(key)||!['applied','rejected'].includes(r.state)||!Number.isSafeInteger(r.resultRevision)||r.resultRevision<0||r.resultRevision>d.revision||!(r.reason===null||typeof r.reason==='string'&&/^[a-z0-9_-]{1,80}$/.test(r.reason)))throw Error('共有操作の記録が不正です');ids.add(key)}
+  }
+  function remotePreserveReceipts(next){
+    const raw=localStorage.getItem(KEY),current=raw?JSON.parse(raw):null;
+    if(current)remoteValidateReceipts(current);
+    const all=new Map();
+    for(const r of next.remoteReceipts||[])if(r.resultRevision<=next.revision)all.set(r.roomId+':'+r.id,r);
+    // The current durable result wins over imported/undo versions of the same ID.
+    for(const r of current?.remoteReceipts||[])all.set(r.roomId+':'+r.id,r);
+    if(all.size||next.remoteReceipts!==undefined)next.remoteReceipts=[...all.values()].sort((a,b)=>a.resultRevision-b.resultRevision).slice(-500);
+  }
+  function remoteReadConfig(){
+    try{const raw=localStorage.getItem(REMOTE_KEY);if(!raw){remoteConfigError=false;return null}const c=JSON.parse(raw);
+      if(!c||c.v!==1||c.purpose!==(TEST_MODE?'test':'live')||!REMOTE_UUID.test(c.roomId)||!REMOTE_TOKEN.test(c.writerToken)||!/^\d{12}$/.test(c.pairCode)||c.serverURL!==REMOTE_SERVER||!/^https:\/\//.test(c.serverURL)||!(c.pairExpiresAt===null||Number.isSafeInteger(c.pairExpiresAt))||typeof c.established!=='boolean'||!(c.pendingPairCode===undefined||/^\d{12}$/.test(c.pendingPairCode))||!(c.revoking===undefined||typeof c.revoking==='boolean'))throw Error('config');
+      remoteConfigError=false;return c;
+    }catch{remoteConfigError=true;return null}
+  }
+  function remoteWriteConfig(c){const raw=JSON.stringify(c);localStorage.setItem(REMOTE_KEY,raw);if(localStorage.getItem(REMOTE_KEY)!==raw)throw Error('接続設定を保存できません');remoteConfigError=false}
+  function remoteSame(c){const current=remoteReadConfig();return !!current&&current.roomId===c.roomId&&current.writerToken===c.writerToken&&current.pairCode===c.pairCode&&current.pendingPairCode===c.pendingPairCode&&!current.revoking}
+  function remoteRandomToken(){const b=new Uint8Array(32);crypto.getRandomValues(b);return btoa(String.fromCharCode(...b)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','')}
+  function remoteRandomCode(){let s='';while(s.length<12){const b=new Uint8Array(24);crypto.getRandomValues(b);for(const n of b)if(n<250&&s.length<12)s+=n%10}return s}
+  function remoteRandomId(){if(crypto.randomUUID)return crypto.randomUUID();const b=new Uint8Array(16);crypto.getRandomValues(b);b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;const h=[...b].map(n=>n.toString(16).padStart(2,'0')).join('');return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20)}
+  function remoteNow(){return remoteClock?remoteClock.serverTime+Math.max(0,performance.now()-remoteClock.sentAt):null}
+  async function remoteRequest(c,path,body,authenticated=true){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000),sentAt=performance.now();
+    try{const response=await fetch(c.serverURL+path,{method:'POST',headers:{'Content-Type':'application/json',...(authenticated?{Authorization:'Bearer '+c.writerToken}:{})},body:JSON.stringify(body),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal});let result;try{result=await response.json()}catch{throw Error('invalid-response')}
+      if(!response.ok){const e=Error(result.error||'network-error');e.code=result.error;e.status=response.status;throw e}
+      if(!Number.isSafeInteger(result.serverTime))throw Error('invalid-server-time');
+      remoteClock={serverTime:result.serverTime,sentAt};return result;
+    }finally{clearTimeout(timer)}
+  }
+  function remoteTicketCore(t){return [t.code,t.createdAt,t.slotId,t.participants,t.unitPrice,t.status,t.paymentChoice??null,t.paypayQrType??null,t.bookingSource??null,t.paymentIntent??null,t.payment?{method:t.payment.method,amount:t.payment.amount,refundAt:t.payment.refundAt}:null]}
+  async function remoteTicketHash(t){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(remoteTicketCore(t)))))].map(n=>n.toString(16).padStart(2,'0')).join('')}
+  async function remoteSnapshot(d){
+    const tickets=await Promise.all(d.tickets.map(async t=>{const x={code:t.code,createdAt:t.createdAt,slotId:t.slotId,participants:t.participants,unitPrice:t.unitPrice,status:t.status};for(const key of ['paymentChoice','paypayQrType','bookingSource','paymentIntent'])if(t[key]!==undefined)x[key]=t[key];x.payment=t.payment?{method:t.payment.method,amount:t.payment.amount,refundAt:t.payment.refundAt}:null;x.hash=await remoteTicketHash(t);return x}));
+    return {v:1,purpose:TEST_MODE?'test':'live',revision:d.revision,open:d.settings.open,slots:d.settings.slots.map(s=>({id:s.id,time:s.time,capacity:20})),tickets};
+  }
+  function remotePanelMarkup(){
+    const c=remoteReadConfig();
+    if(location.protocol==='file:')return '<p>iPhoneとの連携は、Safariで公開アプリを開いてご利用ください。</p><a href="https://nabe0930.github.io/tomonsai-2026-ipad-kiosk/?v=21" target="_blank" rel="noopener noreferrer">公開アプリを開く</a>';
+    if(!REMOTE_SERVER)return '<p class="muted">共有先準備中</p><button type="button" disabled>iPhoneとの接続を開始</button>';
+    if(remoteConfigError)return '<p class="notice error">接続設定を読み込めません。受付記録は端末内に保存されています。</p>';
+    const status='<p id="remote-status" role="status" class="notice"></p><p id="remote-last-sent" class="tiny muted"></p>';
+    if(!c)return status+'<p>iPadをネットに接続し、iPhoneの管理画面に接続番号を入力してください。</p><button type="button" id="remote-start">iPhoneとの接続を開始</button>';
+    if(c.revoking)return status+'<p>接続解除を送信中です。iPhoneからの操作は停止しています。</p><button type="button" id="remote-disconnect">接続解除を再試行</button>';
+    return status+`<p class="tiny muted">${TEST_MODE?'練習':'本番'}の管理画面</p><p><a href="${esc(c.serverURL+'/')}" target="_blank" rel="noopener noreferrer">iPhone管理画面を開く</a></p><p>接続番号（10分間有効）</p><p style="font-size:28px;font-weight:700;letter-spacing:.08em;overflow-wrap:anywhere">${esc((c.pendingPairCode||c.pairCode).replace(/(\d{4})(?=\d)/g,'$1 '))}</p><p id="remote-pair-status" class="tiny muted"></p><div class="row">${!c.established?'<button type="button" id="remote-start">接続を再試行</button>':'<button type="button" id="remote-pair" class="secondary">接続番号を再発行</button>'}<button type="button" id="remote-disconnect" class="secondary">接続を解除</button></div><p class="tiny muted">ネットが切れてもiPadの受付は続けられます。iPhoneからの変更はiPadに反映されてから完了になります。</p>`;
+  }
+  function remoteSettingsMarkup(){return '<details class="admin-detail" id="remote-settings"><summary>iPhone管理</summary><div id="remote-panel">'+remotePanelMarkup()+'</div></details>'}
+  function remoteRefreshPanel(){if(screen==='admin'&&adminActive&&adminTab==='settings'&&$('remote-panel')){$('remote-panel').innerHTML=remotePanelMarkup();remoteRefreshStatus()}}
+  function remoteRefreshStatus(){
+    if(screen!=='admin'||!adminActive||adminTab!=='settings')return;
+    const c=remoteReadConfig(),status=$('remote-status'),last=$('remote-last-sent'),pair=$('remote-pair-status');
+    if(status)status.textContent=remoteState;
+    if(last)last.textContent=remoteLastSent?'最終送信 '+new Date(remoteLastSent).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'まだ送信していません';
+    if(pair)pair.textContent=c?.pendingPairCode?'接続番号の発行を再試行してください':!c?.established?'接続設定を登録してください':remoteNow()!==null&&c.pairExpiresAt!==null&&remoteNow()>=c.pairExpiresAt?'接続番号の有効期限が過ぎました。必要なら再発行してください。':'接続済みのiPhoneは、この番号の期限が過ぎても使えます。';
+  }
+  function remoteCheckOperation(op){assertAdminOperation(op);return true}
+  async function remoteStart(){
+    let op,c;
+    try{requireAdmin();touchAdmin();op=captureAdminOperation();if(!REMOTE_SERVER)throw Error('共有先準備中です');c=remoteReadConfig();if(remoteConfigError)throw Error('接続設定を読み込めません');
+      if(!c){c={v:1,purpose:TEST_MODE?'test':'live',roomId:remoteRandomId(),writerToken:remoteRandomToken(),pairCode:remoteRandomCode(),pairExpiresAt:null,serverURL:REMOTE_SERVER,established:false};remoteWriteConfig(c)}
+      if(c.revoking)throw Error('先に接続解除を完了してください');
+      remoteState='接続を登録中';remoteRefreshStatus();
+      const result=await remoteRequest(c,'/api/rooms',{roomId:c.roomId,writerToken:c.writerToken,pairCode:c.pairCode,purpose:c.purpose},false);
+      remoteCheckOperation(op);if(!remoteSame(c)||result.roomId!==c.roomId||result.purpose!==c.purpose||!Number.isSafeInteger(result.pairExpiresAt))throw Error('接続設定が変わりました');
+      c.established=true;c.pairExpiresAt=result.pairExpiresAt;remoteWriteConfig(c);remoteState='接続しました';remoteRefreshPanel();remoteSchedule();
+    }catch(e){remoteState='接続できません。ネット接続を確認して再試行してください';remoteRefreshStatus();if(screen==='admin'&&adminActive)setAlert(e.message,'error')}
+  }
+  async function remotePair(){
+    try{requireAdmin();touchAdmin();const op=captureAdminOperation(),c=remoteReadConfig();if(!c?.established||c.revoking)throw Error('先に接続を開始してください');
+      if(!c.pendingPairCode){if(!ask('接続番号を再発行しますか？ 接続済みのiPhoneは切断され、未反映の操作は停止します。'))return;c.pendingPairCode=remoteRandomCode();remoteWriteConfig(c)}
+      const result=await remoteRequest(c,'/api/rooms/'+c.roomId+'/pair-code',{pairCode:c.pendingPairCode});remoteCheckOperation(op);if(!remoteSame(c)||result.roomId!==c.roomId||result.purpose!==c.purpose||!Number.isSafeInteger(result.pairExpiresAt))throw Error('接続設定が変わりました');
+      c.pairCode=c.pendingPairCode;delete c.pendingPairCode;c.pairExpiresAt=result.pairExpiresAt;remoteWriteConfig(c);remoteState='接続番号を発行しました';remoteRefreshPanel();remoteSchedule();
+    }catch(e){remoteState='接続番号を発行できません。再試行してください';remoteRefreshStatus();if(screen==='admin'&&adminActive)setAlert(e.message,'error')}
+  }
+  async function remoteDisconnect(){
+    try{requireAdmin();touchAdmin();const c=remoteReadConfig();if(!c)return;
+      if(!c.revoking&&!ask('iPhoneとの接続を解除しますか？ iPadの受付記録は残ります。'))return;
+      c.revoking=true;remoteWriteConfig(c);remoteState='接続解除を送信中';remoteRefreshPanel();await remoteFinishRevoke(c);
+    }catch(e){remoteState='接続解除を再試行します。iPhoneからの操作は停止中です';remoteRefreshStatus();if(screen==='admin'&&adminActive)setAlert(e.message,'error')}
+  }
+  async function remoteFinishRevoke(c){await remoteRequest(c,'/api/rooms/'+c.roomId+'/revoke',{});const current=remoteReadConfig();if(current?.roomId===c.roomId&&current.writerToken===c.writerToken){localStorage.removeItem(REMOTE_KEY);remoteState='未接続';remoteLastSent=null;remoteRefreshPanel()}}
+  function remoteRenderChanges(){
+    if(screen==='ticket'&&shownTicket){shownTicket=data.tickets.find(t=>t.code===shownTicket.code&&t.createdAt===shownTicket.createdAt)||null;if(shownTicket){if(shownTicket.payment||shownTicket.status==='cancelled')clearTicketQr();renderTicket()}else guestReset()}
+    else if(screen==='guest')renderGuest();
+    else if(screen==='admin'&&adminActive){if(adminTab==='reception')renderAdmin();else setAlert('iPhoneから受付記録が更新されました。入力中の内容は残っています。')}
+  }
+  async function remoteApply(c,cmd){
+    if(!remoteSame(c)||document.hidden||!cmd||!REMOTE_UUID.test(cmd.id)||!['confirm-paypay','cancel'].includes(cmd.kind)||cmd.state!=='pending'||typeof cmd.code!=='string'||typeof cmd.expectedCreatedAt!=='string'||!/^[0-9a-f]{64}$/.test(cmd.expectedTicketHash)||!Number.isSafeInteger(cmd.expiresAt))return false;
+    const foregroundEpoch=remoteVisibilityEpoch;
+    let fresh=read();if((fresh.remoteReceipts||[]).some(r=>r.roomId===c.roomId&&r.id===cmd.id))return false;
+    let reason=null,t=fresh.tickets.find(t=>t.code===cmd.code),beforeRevision=fresh.revision,core=t?JSON.stringify(remoteTicketCore(t)):null;
+    const hash=t?await remoteTicketHash(t):null;
+    if(!remoteSame(c)||document.hidden||foregroundEpoch!==remoteVisibilityEpoch)return false;
+    const latest=read(),latestTicket=latest.tickets.find(t=>t.code===cmd.code);
+    if((latest.remoteReceipts||[]).some(r=>r.roomId===c.roomId&&r.id===cmd.id))return false;
+    if(latest.revision!==beforeRevision||(latestTicket?JSON.stringify(remoteTicketCore(latestTicket)):null)!==core)reason='local-conflict';
+    fresh=latest;t=latestTicket;
+    if(!reason&&(remoteNow()===null||remoteNow()>=cmd.expiresAt))reason='expired';
+    if(!reason&&(!t||t.createdAt!==cmd.expectedCreatedAt||hash!==cmd.expectedTicketHash))reason='stale-ticket';
+    if(!reason&&cmd.kind==='confirm-paypay'&&(t.status!=='reserved'||t.payment||t.paymentIntent||t.paymentChoice!=='paypay'||t.unitPrice!==1000))reason='not-applicable';
+    if(!reason&&cmd.kind==='cancel'&&!['pending_paypay','reserved','seated'].includes(t.status))reason='not-applicable';
+    const next=structuredClone(fresh),x=next.tickets.find(t=>t.code===cmd.code);next.revision++;
+    if(!reason){if(cmd.kind==='cancel')x.status='cancelled';else x.payment={method:ticketQrType(x)==='personal'?'paypay-personal':'paypay-manual',amount:x.participants*x.unitPrice,at:new Date(remoteNow()).toISOString(),refundAt:null}}
+    next.remoteReceipts=[...(next.remoteReceipts||[]),{roomId:c.roomId,id:cmd.id,state:reason?'rejected':'applied',reason,resultRevision:next.revision}].slice(-500);
+    save(next);if(!reason)remoteRenderChanges();return true;
+  }
+  function remoteSaved(){try{remoteSchedule()}catch{remoteState='共有の送信待ちです。受付記録は保存されています'}}
+  function remoteSchedule(){if(!REMOTE_SERVER||location.protocol==='file:')return;remoteQueued=true;if(remoteBusy||remoteTimer)return;remoteTimer=setTimeout(()=>{remoteTimer=null;remoteSync().catch(()=>{})},100)}
+  async function remoteSync(){
+    if(remoteBusy)return;const c=remoteReadConfig();if(!c||document.hidden)return;
+    if((!c.established||c.pendingPairCode)&&!c.revoking)return;
+    remoteBusy=true;remoteQueued=false;
+    try{if(c.revoking){await remoteFinishRevoke(c);return}
+      let rounds=0;
+      do{remoteQueued=false;if(!remoteSame(c)||document.hidden)break;const foregroundEpoch=remoteVisibilityEpoch,fresh=read(),snapshot=await remoteSnapshot(fresh);
+        if(!remoteSame(c)||document.hidden)break;
+        const receipts=(fresh.remoteReceipts||[]).filter(r=>r.roomId===c.roomId).slice(-100).map(({id,state,reason,resultRevision})=>({id,state,reason,resultRevision}));
+        const result=await remoteRequest(c,'/api/rooms/'+c.roomId+'/sync',{snapshot,receipts});
+        if(!remoteSame(c))break;if(foregroundEpoch!==remoteVisibilityEpoch){remoteQueued=true;break}if(!Array.isArray(result.commands)||result.commands.length>100)throw Error('invalid-commands');
+        remoteLastSent=result.serverTime;remoteState='同期済み';remoteRefreshStatus();
+        for(const cmd of result.commands){if(document.hidden||!remoteSame(c))break;if(await remoteApply(c,cmd))remoteQueued=true}
+        rounds++;
+      }while(remoteQueued&&rounds<4&&!document.hidden);
+    }catch(e){remoteState=e.code==='unauthorized'?'接続が無効です。接続設定を確認してください':'未送信の変更があります。ネット接続後に自動で再試行します';remoteRefreshStatus()}
+    finally{remoteBusy=false;if(remoteQueued)remoteSchedule()}
+  }
+  setInterval(()=>{if(REMOTE_SERVER){remoteRefreshStatus();remoteSchedule()}},5000);
+  window.addEventListener('online',remoteSchedule);
+  window.addEventListener('pageshow',remoteSchedule);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)remoteVisibilityEpoch++;else remoteSchedule()});
+
   init();
+  remoteSchedule();
   refreshPaymentReady();
   if(location.protocol==='https:'&&'serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
 })();
