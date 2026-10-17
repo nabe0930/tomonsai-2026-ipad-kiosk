@@ -1,5 +1,5 @@
-const CACHE='tomonsai-kiosk-prototype-v21';
-const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./payment-qr.png','./payment-qr.png?qr=eff521ed90ab','./practice-qr.svg','./tomonsai-logo-2026.jpg'];
+const CACHE='tomonsai-kiosk-prototype-v22';
+const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./payment-qr.png','./payment-qr.png?qr=eff521ed90ab','./practice-qr.svg','./tomonsai-logo-2026.jpg','./design-assets/fonts/fragment-mono-400-latin.woff2','./design-assets/fonts/shippori-mincho-600-ui.woff2','./design-assets/fonts/zen-kaku-gothic-new-400-ui.woff2','./design-assets/fonts/zen-kaku-gothic-new-700-ui.woff2','./design-assets/specimen-fish.webp','./design-assets/specimen-frog.webp','./design-assets/specimen-seahorse.webp'];
 
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#77263a">
+<meta name="theme-color" content="#f7f5f0">
 <meta name="robots" content="noindex,nofollow">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>学生注目！透明標本の封入体験するよ！｜稲門祭受付</title>
@@ -41,10 +41,580 @@
   footer .app-version{display:block;font-size:10px;letter-spacing:.05em;margin-top:4px}
   @media(max-width:600px){.practice-bar{padding:12px 20px;align-items:flex-start;gap:10px;font-size:12px}.practice-bar small{font-size:12px}.practice-bar a{font-size:12px}}
 </style>
+<style>
+@font-face {
+  font-family: 'Shippori Mincho';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./design-assets/fonts/shippori-mincho-600-ui.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./design-assets/fonts/zen-kaku-gothic-new-400-ui.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./design-assets/fonts/zen-kaku-gothic-new-700-ui.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Fragment Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./design-assets/fonts/fragment-mono-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Visitor UI adapted from the user supplied V1-V11 design.
+   Fonts are bundled separately. Administrative workflows keep their own layout. */
+:root {
+  --rd-paper: #f7f5f0;
+  --rd-ink: #1a1e25;
+  --rd-muted: #4f5560;
+  --rd-soft: #6b7079;
+  --rd-line: rgba(26,30,37,.16);
+  --rd-rule: rgba(26,30,37,.3);
+  --rd-blue: #0071a5;
+  --rd-mono: 'Fragment Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --rd-sans: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  --rd-serif: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+}
+body[data-screen="guest"], body[data-screen="ticket"] {
+  background-color: var(--rd-paper);
+  background-image: linear-gradient(rgba(38,104,150,.07) 1px,transparent 1px), linear-gradient(90deg,rgba(38,104,150,.07) 1px,transparent 1px), linear-gradient(rgba(38,104,150,.035) 1px,transparent 1px), linear-gradient(90deg,rgba(38,104,150,.035) 1px,transparent 1px);
+  background-size: 100px 100px,100px 100px,20px 20px,20px 20px;
+  color: var(--rd-ink);
+  font-family: var(--rd-sans);
+  line-height: 1.55;
+}
+body[data-screen="guest"] #kiosk-header, body[data-screen="ticket"] #kiosk-header {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 48px 16px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  border: 0;
+}
+body[data-screen="guest"][data-guest-step="slots"] #kiosk-header {
+  position: relative;
+  padding-bottom: 18px;
+}
+body[data-screen="guest"][data-guest-step="slots"] #kiosk-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 48px;
+  right: 48px;
+  height: 1px;
+  background: var(--rd-rule);
+}
+body[data-screen="guest"] #kiosk-header .event-logo, body[data-screen="ticket"] #kiosk-header .event-logo {
+  display: block;
+  width: 113px;
+  height: auto;
+  flex: none;
+}
+body[data-screen="guest"][data-guest-step="slots"] #kiosk-header .event-logo { width: 136px; }
+#header-context { min-width: 0; }
+.rd-header-info { display: flex; gap: 36px; align-items: flex-end; }
+.rd-header-info > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.rd-header-info small, .rd-header-info .rd-info-label { color: var(--rd-soft); font-size: 14px; letter-spacing: .08em; }
+.rd-header-info strong { display: flex; align-items: center; gap: 8px; font-size: 22px; line-height: 1.4; font-weight: 700; }
+.rd-header-info .rd-info-dot { width: 10px; height: 10px; background: var(--rd-blue); border-radius: 50%; box-shadow: 0 0 0 4px rgba(0,113,165,.18); }
+.rd-header-info .rd-info-dot.closed { background: var(--rd-soft); box-shadow: 0 0 0 4px rgba(107,112,121,.14); }
+.rd-header-info .rd-room { font-family: var(--rd-mono); font-weight: 400; }
+.rd-steps { width: 100%; }
+ol.rd-steps { list-style: none; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin: 0; padding: 0; }
+.rd-steps li { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; border-bottom: 3px solid var(--rd-line); font-size: 15px; line-height: 1.4; color: var(--rd-soft); }
+.rd-steps li > span:first-child { white-space: nowrap; }
+.rd-steps li b, .rd-steps .rd-step-number { font-family: var(--rd-mono); font-weight: 400; margin-right: 6px; }
+.rd-steps li.done { border-bottom-color: var(--rd-ink); color: var(--rd-muted); }
+.rd-steps li.current { border-bottom: 6px solid var(--rd-ink); padding-bottom: 5px; color: var(--rd-ink); font-weight: 700; }
+.rd-steps li > i { display: none; }
+body[data-screen="guest"] .rd-steps, body[data-screen="ticket"] .rd-steps { max-width: 660px; }
+body[data-screen="guest"] #header-context:has(.rd-steps), body[data-screen="ticket"] #header-context:has(.rd-steps) { flex: 1; max-width: 660px; }
+body[data-screen="guest"] main, body[data-screen="ticket"] main { max-width: 1120px; margin: 0 auto; padding: 24px 48px 28px; }
+body[data-screen="guest"] main h1, body[data-screen="ticket"] main h1 { color: var(--rd-ink); }
+body[data-screen="guest"] main button, body[data-screen="ticket"] main button, #reservation-review button {
+  min-height: 52px;
+  border-radius: 999px;
+  background: var(--rd-ink);
+  color: var(--rd-paper);
+  font: 700 20px/1.4 var(--rd-sans);
+  letter-spacing: 0;
+}
+body[data-screen="guest"] main button.secondary, body[data-screen="ticket"] main button.secondary, #reservation-review button.secondary {
+  background: transparent;
+  color: var(--rd-ink);
+  border: 1.5px solid rgba(26,30,37,.4);
+}
+body[data-screen="guest"] main button:disabled, body[data-screen="ticket"] main button:disabled, #reservation-review button:disabled { background: #dcd9d2; color: var(--rd-muted); border-color: transparent; opacity: 1; cursor: not-allowed; }
+body[data-screen="guest"] main button:focus-visible, body[data-screen="ticket"] main button:focus-visible, #reservation-review button:focus-visible, .rd-check input:focus-visible { outline: 3px solid var(--rd-blue); outline-offset: 4px; }
+body[data-screen="guest"] main button svg, body[data-screen="ticket"] main button svg, #reservation-review button svg { flex: none; }
+#guest .rd-top-grid { display: grid; grid-template-columns: minmax(0,1fr); gap: 28px; }
+#guest .rd-intro { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) 232px; gap: 26px 32px; align-items: start; }
+#guest .rd-hero { min-width: 0; padding: 0; }
+#guest .rd-hero-copy { min-width: 0; }
+#guest .rd-schedule-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+#guest .rd-schedule-heading .rd-section-label { margin: 0; }
+#guest .rd-schedule-heading > p { margin: 0; font-size: 15px; color: var(--rd-soft); }
+#guest .rd-booking-paused { grid-column: 1/-1; }
+#guest .rd-hero h1 { margin: 0; font: 600 56px/1.28 var(--rd-serif); letter-spacing: .02em; overflow-wrap: anywhere; }
+#guest .rd-facts { min-width: 0; }
+#guest dl.rd-facts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); padding: 0; margin: 22px 0 0; border-top: 1px solid var(--rd-rule); border-bottom: 1px solid var(--rd-line); }
+#guest dl.rd-facts > div { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px 8px 14px 14px; border-left: 1px solid var(--rd-line); }
+#guest dl.rd-facts > div:first-child { border-left: 0; padding-left: 0; }
+#guest .rd-facts dt { font-size: 15px; color: var(--rd-soft); letter-spacing: .04em; }
+#guest .rd-facts dd { margin: 0; font-size: 18px; font-weight: 700; white-space: nowrap; }
+#guest .rd-facts dd b, #guest .rd-facts dd .rd-mono { font: 400 27px/1.2 var(--rd-mono); }
+#guest .rd-specimens { grid-column: 2; grid-row: 1; display: flex; gap: 12px; margin: 0; align-self: stretch; }
+#guest .rd-specimens figure { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; min-width: 0; margin: 0; min-height: 250px; padding: 12px 12px 42px; border: 1px solid rgba(26,30,37,.22); background-color: #efece6; background-image: linear-gradient(rgba(38,104,150,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(38,104,150,.18) 1px,transparent 1px),linear-gradient(rgba(38,104,150,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(38,104,150,.08) 1px,transparent 1px); background-size: 50px 50px,50px 50px,10px 10px,10px 10px; background-position: -1px -1px; }
+#guest .rd-specimens figure.rd-fish, #guest .rd-specimens figure.rd-seahorse { display: none; }
+#guest .rd-specimens img { width: 100%; max-width: 130px; height: 196px; object-fit: contain; }
+#guest .rd-specimens figcaption { position: absolute; bottom: 0; left: 0; right: 0; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between; gap: 4px; color: var(--rd-muted); background: rgba(247,245,240,.92); border-top: 1px solid var(--rd-line); font-size: 13px; }
+#guest .rd-policy { grid-column: 1 / -1; display: flex; flex-direction: column; }
+.rd-section-label { display: flex; justify-content: flex-start; align-items: center; gap: 12px; font-size: 15px; line-height: 1.5; letter-spacing: .06em; color: var(--rd-muted); margin: 0 0 12px; }
+.rd-section-label > span:first-child { display: block; width: 40px; height: 1px; background: rgba(26,30,37,.4); flex: none; }
+.rd-section-label > span:first-child::before { content: none; }
+.rd-section-label small { font-size: 14px; letter-spacing: 0; color: var(--rd-soft); }
+#guest .rd-policy .rd-rule { display: flex; align-items: flex-start; gap: 22px; padding: 15px 0; border-top: 1px solid var(--rd-line); }
+#guest .rd-policy .rd-rule:first-of-type { border-top-color: var(--rd-rule); }
+#guest .rd-policy .rd-rule:last-child { border-bottom: 1px solid var(--rd-line); }
+.rd-pill { display: inline-flex; align-items: center; gap: 8px; flex: none; min-width: 128px; min-height: 36px; margin-top: 2px; padding: 5px 14px; border: 1px solid rgba(26,30,37,.25); border-radius: 999px; background: #fff; font-size: 15px; line-height: 1.5; font-weight: 500; }
+.rd-pill::before { content: ''; width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--rd-soft); }
+.rd-pill.red::before { background: #ba3822; }
+.rd-pill.blue::before { background: var(--rd-blue); }
+#guest .rd-policy h2 { margin: 0 0 4px; font-size: 25px; line-height: 1.4; font-weight: 700; }
+#guest .rd-policy p { margin: 0; color: var(--rd-muted); font-size: 18px; line-height: 1.55; }
+#guest .rd-session-area { min-width: 0; }
+#guest .rd-schedule-panel.schedule { display: flex; flex-direction: column; gap: 0; padding: 0 22px; background: rgba(255,255,255,.78); border: 1px solid var(--rd-line); border-radius: 22px; box-shadow: 0 1px 0 rgba(26,30,37,.04),0 18px 40px -24px rgba(26,30,37,.28); }
+#guest .rd-schedule-panel .card.rd-slot { display: grid; grid-template-columns: 172px minmax(0,1fr) 214px; column-gap: 20px; row-gap: 6px; align-items: center; min-height: 92px; padding: 13px 0; border: 0; border-top: 1px solid rgba(26,30,37,.12); background: transparent; box-shadow: none; border-radius: 0; }
+#guest .rd-schedule-panel .card.rd-slot:first-child { border-top: 0; }
+#guest .rd-time-range { display: flex; flex-direction: column; gap: 6px; }
+#guest .rd-time-range .time { font: 400 44px/1 var(--rd-mono); letter-spacing: 0; color: var(--rd-ink); }
+#guest .rd-time-range .rd-end { color: var(--rd-soft); font: 400 15px/1.3 var(--rd-mono); }
+#guest .rd-slot-availability { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left; }
+#guest .rd-slot-availability .remain { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; font-size: 16px; font-weight: 400; line-height: 1.2; color: var(--rd-muted); }
+#guest .rd-slot-availability .remain b { margin: 0; color: var(--rd-ink); font: 400 34px/1 var(--rd-mono); }
+#guest .rd-meter { display: grid; grid-template-columns: repeat(20,minmax(0,1fr)); gap: 3px; width: min(277px,100%); }
+#guest .rd-meter i { display: block; height: 11px; background: #dcd9d2; }
+#guest .rd-meter i.filled { background: #2f89b9; }
+#guest .rd-low-badge { display: inline-flex; align-items: center; padding: 4px 11px; background: #ffe9e5; color: #a52b1e; border-radius: 999px; font: 700 14px/1.3 var(--rd-sans); white-space: nowrap; }
+#guest .rd-schedule-panel button.rd-action { display: inline-flex; align-items: center; justify-content: center; gap: 14px; width: 100%; min-width: 0; min-height: 64px; padding: 12px 14px; font-size: 23px; }
+#guest .rd-schedule-panel button.rd-action:disabled { border: 1.5px dashed rgba(26,30,37,.35); color: var(--rd-muted); background: transparent; font-size: 21px; }
+#guest .rd-schedule-panel .slot-note { grid-column: 1/-1; margin: 0; font-size: 15px; color: var(--rd-muted); }
+#guest .rd-booking-paused { margin: 0 0 16px; border: 1.5px solid #d7a459; border-radius: 16px; background: #fbedd5; color: #7f4e07; padding: 18px 22px; font-size: 18px; }
+#guest .rd-booking-paused h2 { margin: 0 0 6px; color: inherit; font: 600 28px/1.4 var(--rd-serif); }
+#guest .rd-booking-paused p { margin: 0; }
+body[data-screen="guest"][data-guest-step="slots"] footer { display: flex; justify-content: flex-end; max-width: 1120px; margin: 0 auto; border: 0; padding: 0 48px 24px; font-size: 12px; gap: 16px; }
+body[data-screen="guest"][data-guest-step="slots"] footer button.secondary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 18px; border: 1px solid rgba(26,30,37,.25); border-radius: 999px; color: var(--rd-muted); background: rgba(255,255,255,.7); font: 500 15px/1.4 var(--rd-sans); }
+body[data-screen="guest"][data-guest-step="details"] footer, body[data-screen="guest"][data-guest-step="confirm"] footer, body[data-screen="ticket"] footer { display: none; }
+
+/* Number of participants, safety acknowledgements, and review. */
+body[data-screen="guest"] #guest-form { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+#guest-form .rd-selected-summary { display: flex; align-items: center; gap: 24px; padding: 18px 18px 18px 26px; background: rgba(255,255,255,.78); border: 1px solid var(--rd-line); border-radius: 22px; margin: 0 0 26px; }
+#guest-form .rd-selected-summary > div:first-child { flex: 1; min-width: 0; }
+#guest-form .rd-selected-summary .rd-form-note { display: block; font-size: 14px; margin: 0 0 6px; color: var(--rd-soft); letter-spacing: .08em; }
+#guest-form .rd-selected-time { flex: 1; min-width: 0; }
+#guest-form .rd-selected-time small { display: block; color: var(--rd-soft); font-size: 14px; letter-spacing: .08em; margin-bottom: 6px; }
+#guest-form .rd-selected-time b { font: 400 52px/1.1 var(--rd-mono); }
+#guest-form .rd-selected-time .rd-end { font: 400 22px/1.1 var(--rd-mono); color: var(--rd-muted); margin-left: 12px; }
+#guest-form .rd-selected-time .rd-duration { color: var(--rd-muted); font-size: 18px; margin-left: 12px; }
+#guest-form .rd-selected-time small.rd-duration { display: inline; margin-bottom: 0; }
+#guest-form .rd-selected-remain { display: flex; align-items: baseline; gap: 6px; color: var(--rd-muted); font-size: 16px; white-space: nowrap; }
+#guest-form .rd-selected-remain b { font: 400 32px/1.1 var(--rd-mono); color: var(--rd-ink); }
+#guest-form .rd-selected-summary button.secondary { display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex: none; min-height: 56px; padding: 12px 22px; font-size: 19px; }
+#guest-form h1.rd-title { font: 600 36px/1.4 var(--rd-serif); margin: 0 0 8px; letter-spacing: .015em; }
+#guest-form .rd-form-note { margin: 0 0 18px; font-size: 18px; line-height: 1.6; color: var(--rd-muted); }
+#guest-form .choice.rd-people { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; max-width: none; margin: 18px 0; }
+#guest-form .choice.rd-people button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 128px; padding: 18px 12px; background: rgba(255,255,255,.78); border: 1.5px solid rgba(26,30,37,.28); color: var(--rd-ink); border-radius: 18px; outline: 0; }
+#guest-form .choice.rd-people button { position: relative; }
+#guest-form .rd-selection-check { position: absolute; right: 12px; top: 8px; font-size: 19px; }
+#guest-form .choice.rd-people button.active { background: var(--rd-ink); color: var(--rd-paper); border-color: var(--rd-ink); box-shadow: 0 0 0 3px var(--rd-paper),0 0 0 5px var(--rd-ink); }
+#guest-form .choice.rd-people button:disabled { background: rgba(220,217,210,.5); color: var(--rd-soft); border: 1px dashed rgba(26,30,37,.3); box-shadow: none; }
+#guest-form .rd-person-count { font-size: 22px; font-weight: 700; line-height: 1; }
+#guest-form .rd-person-count b { font: 400 49px/1 var(--rd-mono); margin-right: 7px; }
+#guest-form .rd-person-price { font: 400 17px/1.2 var(--rd-mono); }
+#guest-form .rd-total { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 0; border-top: 1px solid var(--rd-rule); border-bottom: 1px solid var(--rd-line); }
+#guest-form .summary.rd-total { background: transparent; margin: 18px 0 0; border-radius: 0; }
+#guest-form .rd-total-amount { display: flex; align-items: baseline; gap: 10px; color: var(--rd-muted); font-size: 18px; }
+#guest-form .rd-total-amount b { color: var(--rd-ink); font: 400 42px/1.1 var(--rd-mono); }
+#guest-form .rd-total-amount small { font-size: 16px; }
+.rd-badge { display: inline-flex; gap: 8px; align-items: center; flex: none; padding: 7px 15px; border: 1px solid rgba(26,30,37,.25); border-radius: 999px; font-size: 16px; font-weight: 700; }
+.rd-badge::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #ba3822; }
+#guest-form .rd-path { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; padding: 18px 0 24px; color: var(--rd-muted); font-size: 16px; }
+#guest-form ol.rd-path { list-style: none; margin: 0; }
+#guest-form ol.rd-path > li { display: flex; align-items: center; gap: 10px; }
+#guest-form .rd-path b { font: 400 17px/1.2 var(--rd-mono); color: var(--rd-soft); }
+#guest-form .rd-safety { border-top: 1px solid var(--rd-rule); padding-top: 20px; margin: 0 0 16px; }
+#guest-form .rd-safety h2 { font: 600 32px/1.4 var(--rd-serif); margin: 0 0 14px; }
+#guest-form .rd-safety ol { list-style: none; counter-reset: safety; padding: 0; margin: 0; }
+#guest-form .rd-safety ol > li { counter-increment: safety; display: flex; align-items: flex-start; gap: 16px; padding: 12px 0; border-top: 1px solid var(--rd-line); font-size: 20px; line-height: 1.6; }
+#guest-form .rd-safety ol > li p { margin: 0; font: inherit; color: var(--rd-ink); }
+#guest-form .rd-safety ol > li > span:first-child { color: var(--rd-soft); flex: none; padding-top: 3px; font: 400 16px/1.6 var(--rd-mono); }
+#guest-form label.check.rd-check { display: flex; align-items: center; gap: 14px; margin: 10px 0; padding: 15px 18px; border: 1px solid rgba(26,30,37,.25); border-radius: 12px; background: rgba(255,255,255,.76); font-size: 20px; line-height: 1.5; cursor: pointer; }
+#guest-form label.check.rd-check input { flex: none; width: 28px; height: 28px; accent-color: var(--rd-ink); margin: 0; }
+#guest-form .rd-footer-actions { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 0; margin-top: 20px; border-top: 1px solid var(--rd-rule); }
+#guest-form .rd-footer-actions p { font-size: 18px; color: var(--rd-muted); margin: 0; line-height: 1.6; }
+#guest-form .rd-footer-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 16px; flex: none; min-height: 76px; padding: 16px 40px; font-size: 27px; }
+#guest-form .error, #reservation-review .error { border: 1.5px solid #eba295; border-radius: 14px; padding: 16px 20px; font-size: 18px; background: #ffe9e5; color: #a52b1e; }
+#reservation-review { width: min(832px,calc(100vw - 48px)); max-height: calc(100dvh - 48px); margin: auto; box-sizing: border-box; padding: 38px 44px; border: 1px solid rgba(26,30,37,.2); border-radius: 28px; background: var(--rd-paper); color: var(--rd-ink); box-shadow: 0 40px 80px -30px rgba(10,12,16,.6); font-family: var(--rd-sans); }
+#reservation-review::backdrop { background: rgba(22,25,31,.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#reservation-review .rd-review-title { margin: 0 0 24px; font: 600 36px/1.35 var(--rd-serif); letter-spacing: .01em; }
+#reservation-review .rd-review-table { padding: 0; margin: 0; border-top: 1px solid rgba(26,30,37,.35); }
+#reservation-review dl.rd-review-table > div { display: flex; gap: 24px; align-items: baseline; padding: 18px 0; margin: 0; border-bottom: 1px solid var(--rd-line); }
+#reservation-review .rd-review-table dt { flex: none; width: 160px; font-size: 17px; letter-spacing: .04em; color: var(--rd-soft); }
+#reservation-review .rd-review-table dd { margin: 0; font-size: 22px; font-weight: 700; }
+#reservation-review .rd-review-table dd b { font: 400 38px/1.2 var(--rd-mono); }
+#reservation-review .rd-review-table dd small { font-size: 17px; font-weight: 400; color: var(--rd-muted); }
+#reservation-review .rd-review-note { padding: 20px 0 0; margin: 0; font-size: 19px; color: var(--rd-muted); line-height: 1.6; }
+#reservation-review .rd-review-actions { display: flex; gap: 16px; padding-top: 26px; }
+#reservation-review .rd-review-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; flex: 1; min-height: 72px; padding: 14px 22px; font-size: 23px; }
+#reservation-review .rd-review-actions button:last-child { flex: 1.55; }
+
+/* Receipt number and payment instructions. */
+body[data-screen="ticket"] .ticket.rd-ticket { max-width: none; width: 100%; margin: 0; padding: 0; border: 0; background: transparent; color: var(--rd-ink); text-align: left; }
+.rd-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.rd-ticket .rd-ticket-layout { display: grid; grid-template-columns: minmax(0,1fr); gap: 22px; }
+.rd-ticket .rd-ticket-main { min-width: 0; }
+.rd-ticket .rd-number-board { display: flex; flex-direction: column; border: 1px solid rgba(26,30,37,.28); background-color: #efece6; background-image: linear-gradient(rgba(38,104,150,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(38,104,150,.18) 1px,transparent 1px),linear-gradient(rgba(38,104,150,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(38,104,150,.08) 1px,transparent 1px); background-size: 100px 100px,100px 100px,20px 20px,20px 20px; background-position: -1px -1px; }
+.rd-ticket .rd-number-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px 28px 0; }
+.rd-ticket .rd-number-header > div:first-child, .rd-ticket .rd-number-header > span:first-child { font-size: 17px; letter-spacing: .1em; font-weight: 700; }
+.rd-ticket .rd-number-header small, .rd-ticket .rd-number-header > div > span { display: block; font-size: 14px; letter-spacing: 0; font-weight: 400; color: var(--rd-muted); margin-top: 4px; }
+.rd-ticket .rd-status { display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex: none; min-height: 54px; padding: 8px 22px; border: 1.5px solid transparent; border-radius: 999px; font-size: 25px; font-weight: 700; line-height: 1.4; white-space: nowrap; letter-spacing: 0; }
+.rd-ticket .rd-status.pending { color: #7f4e07; background: #fbedd5; border-color: #d7a459; }
+.rd-ticket .rd-status.paid { color: #fff; background: var(--rd-blue); border-color: var(--rd-blue); }
+.rd-ticket .rd-status.cancelled { color: #2b3038; background: #fff; border: 1.5px dashed #6b7079; }
+.rd-ticket .rd-number-board .code { font: 400 clamp(145px,24.6vw,252px)/.98 var(--rd-mono); letter-spacing: -.01em; color: var(--rd-ink); padding: 5px 22px 0; margin: 0; overflow-wrap: anywhere; }
+.rd-ticket .rd-number-board .code.is-long { font-size: clamp(56px,12vw,122px); line-height: 1.15; padding-top: 20px; padding-bottom: 16px; }
+.rd-ticket .rd-ticket-facts { margin-top: 18px; border-top: 1px solid rgba(26,30,37,.28); background: rgba(247,245,240,.94); }
+.rd-ticket dl.rd-ticket-facts { display: grid; grid-template-columns: 1.4fr 1fr 1fr; padding: 0; margin: 18px 0 0; }
+.rd-ticket dl.rd-ticket-facts > div { min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; padding: 16px 24px; border-left: 1px solid var(--rd-line); }
+.rd-ticket dl.rd-ticket-facts > div:first-child { border-left: 0; padding-left: 28px; }
+.rd-ticket .rd-ticket-facts dt { font-size: 15px; color: var(--rd-soft); }
+.rd-ticket .rd-ticket-facts dd { padding: 0; margin: 0; font-size: 20px; font-weight: 700; white-space: nowrap; }
+.rd-ticket .rd-ticket-facts dd b { font: 400 28px/1.2 var(--rd-mono); }
+.rd-ticket .rd-ticket-facts dd .rd-end, .rd-ticket .rd-ticket-facts dd > span { font: 400 18px/1.2 var(--rd-mono); color: var(--rd-muted); }
+.rd-ticket .rd-ticket-notes { margin: 16px 0 0; }
+.rd-ticket .rd-ticket-notes p { font-size: 19px; line-height: 1.6; margin: 10px 0 0; color: var(--rd-muted); }
+.rd-ticket .rd-ticket-notes p:first-child { color: var(--rd-ink); }
+.rd-ticket .rd-number-board.is-cancelled { color: var(--rd-muted); border-style: dashed; background-color: #ebe8e2; background-image: linear-gradient(rgba(26,30,37,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(26,30,37,.07) 1px,transparent 1px); background-size: 20px 20px; }
+.rd-ticket .rd-number-board.is-cancelled .code { color: var(--rd-muted); }
+.rd-ticket .ticket-payment.rd-payment { border-top: 1px solid var(--rd-rule); border-bottom: 0; margin: 0; padding: 18px 0 0; }
+.rd-ticket .rd-payment-heading { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding-bottom: 18px; }
+.rd-ticket .rd-payment-heading h2 { font: 600 32px/1.35 var(--rd-serif); margin: 0; }
+.rd-ticket .rd-payment-heading .payment-total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; flex: none; font-size: 18px; margin: 0; }
+.rd-ticket .rd-payment-heading .payment-total b { font: 400 38px/1.2 var(--rd-mono); }
+.rd-ticket .rd-payment-body { display: grid; grid-template-columns: minmax(260px,.9fr) minmax(0,1.4fr); gap: 30px; align-items: start; }
+.rd-ticket .rd-qr-frame { min-width: 0; padding: 14px; background: #fff; border: 1px solid var(--rd-line); border-radius: 18px; text-align: center; }
+.rd-ticket .rd-qr-frame img.payment-qr { width: 100%; max-width: 320px; height: auto; display: block; background: #fff; margin: 0 auto; padding: 0; }
+.rd-ticket .rd-qr-frame .qr-placeholder { border: 1px dashed #b7b5ae; padding: 30px 14px; margin: 0; min-height: 220px; width: 100%; max-width: none; display: flex; flex-direction: column; justify-content: center; color: var(--rd-muted); }
+.rd-ticket .rd-qr-frame .qr-placeholder p { font-size: 18px; }
+.rd-ticket .rd-payment-steps ol { list-style: none; counter-reset: payment; padding: 0; margin: 0; }
+.rd-ticket .rd-payment-steps ol > li { counter-increment: payment; display: flex; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--rd-line); padding: 12px 0; font-size: 21px; line-height: 1.55; }
+.rd-ticket .rd-payment-steps ol > li p { margin: 0; font: inherit; }
+.rd-ticket .rd-payment-steps .rd-form-note { margin: 12px 0; font-size: 16px; line-height: 1.6; color: var(--rd-muted); }
+.rd-ticket .rd-payment-help { margin-top: 14px; padding: 12px 0; border-top: 1px solid var(--rd-line); font-size: 16px; }
+.rd-ticket .rd-payment-help summary { cursor: pointer; font-weight: 700; }
+.rd-ticket .rd-payment-help p { margin: 10px 0 0; font-size: 16px; line-height: 1.6; }
+.rd-ticket .rd-payment-steps ol > li:first-child { padding-top: 0; }
+.rd-ticket .rd-payment-steps ol > li > span:first-child { font: 400 16px/1.6 var(--rd-mono); color: var(--rd-soft); flex: none; padding-top: 4px; }
+.rd-ticket .rd-payment-steps ol > li b { font-family: var(--rd-mono); font-weight: 400; }
+.rd-ticket .payment-message { border: 1.5px solid #d7a459; border-radius: 14px; padding: 14px 18px; margin: 10px 0; background: #fbedd5; color: #7f4e07; }
+.rd-ticket .payment-message > strong { display: block; font-size: 21px; line-height: 1.5; }
+.rd-ticket .payment-message p { margin: 8px 0 0; font-size: 17px; line-height: 1.5; }
+.rd-ticket .payment-message .message-number { color: #7f4e07; font: 400 36px/1.2 var(--rd-mono); letter-spacing: .04em; margin-left: 12px; }
+.rd-ticket .rd-ticket-return { display: flex; align-items: center; gap: 18px; padding: 22px 0 16px; margin-top: 24px; border-top: 1px solid var(--rd-rule); }
+.rd-ticket .rd-return-copy { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.rd-ticket .rd-countdown { display: block; flex: none; font: 400 32px/1 var(--rd-mono); }
+.rd-ticket .rd-return-copy #countdown { font-weight: 700; }
+.rd-ticket .rd-return-copy p { font-size: 16px; line-height: 1.5; margin: 0; color: var(--rd-muted); }
+.rd-ticket .rd-return-copy small { display: block; font-size: 14px; color: var(--rd-soft); margin-top: 4px; }
+.rd-ticket .rd-ticket-return > p { margin: 0; color: var(--rd-muted); font-size: 16px; }
+.rd-ticket .rd-ticket-return button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 60px; font-size: 18px; padding: 12px 22px; flex: none; }
+.rd-ticket .rd-ticket-return button#ticket-done { font-size: 22px; padding-left: 28px; padding-right: 28px; }
+.rd-ticket .rd-settled-panel { padding: 26px 30px; border-top: 1px solid var(--rd-rule); background: rgba(255,255,255,.6); }
+.rd-ticket .rd-settled-panel h2, .rd-ticket .rd-settled-panel h1 { font: 600 34px/1.4 var(--rd-serif); margin: 0 0 18px; }
+.rd-ticket .rd-settled-panel p { margin: 12px 0; font-size: 21px; line-height: 1.6; }
+.rd-ticket .rd-settled-panel .rd-start-time { display: block; font: 400 60px/1.2 var(--rd-mono); margin: 12px 0; }
+.rd-ticket .rd-meeting { margin: 22px 0; padding: 20px 0; border-top: 1px solid var(--rd-line); border-bottom: 1px solid var(--rd-line); }
+.rd-ticket .rd-meeting > span { display: block; color: var(--rd-soft); font-size: 16px; }
+.rd-ticket .rd-meeting > strong { display: block; margin: 10px 0; font: 400 44px/1.3 var(--rd-mono); }
+.rd-ticket .rd-settled-panel ol { margin: 18px 0 0; padding-left: 25px; font-size: 20px; line-height: 1.7; }
+.rd-ticket .rd-settled-panel li + li { margin-top: 8px; }
+.rd-ticket .rd-settled-panel.is-cancelled { padding: 26px 30px; background: #ffe9e5; border: 1.5px solid #eba295; border-radius: 22px; color: #a52b1e; }
+
+/* Wide iPad: explanation on the left, sessions / payment on the right. */
+@media (min-width:1100px) and (orientation:landscape) {
+  body[data-screen="guest"] #kiosk-header, body[data-screen="ticket"] #kiosk-header { max-width: 1366px; padding-left: 44px; padding-right: 44px; padding-top: 28px; }
+  body[data-screen="guest"] main, body[data-screen="ticket"] main { max-width: 1366px; padding-left: 44px; padding-right: 44px; padding-top: 20px; }
+  body[data-screen="guest"][data-guest-step="slots"] #kiosk-header { max-width: none; width: calc((min(100vw,1366px) - 128px) * .47); margin-left: max(44px,calc((100vw - 1366px)/2 + 44px)); padding: 34px 0 16px; }
+  body[data-screen="guest"][data-guest-step="slots"] #kiosk-header::after { left: 0; right: 0; }
+  body[data-screen="guest"][data-guest-step="slots"] #kiosk-header .event-logo { width: 125px; }
+  .rd-header-info { gap: 26px; }
+  .rd-header-info strong { font-size: 20px; }
+  .rd-header-info small, .rd-header-info .rd-info-label { font-size: 13px; }
+  #guest .rd-top-grid { grid-template-columns: minmax(0,.47fr) minmax(0,.53fr); gap: 40px; }
+  #guest .rd-intro { display: flex; flex-direction: column; gap: 22px; }
+  #guest .rd-hero h1 { font-size: 46px; }
+  #guest dl.rd-facts { margin-top: 20px; }
+  #guest dl.rd-facts > div { padding: 10px 8px 12px 12px; }
+  #guest dl.rd-facts > div:first-child { padding-left: 0; }
+  #guest .rd-facts dt { font-size: 14px; }
+  #guest .rd-facts dd { font-size: 17px; }
+  #guest .rd-facts dd b, #guest .rd-facts dd .rd-mono { font-size: 24px; }
+  #guest .rd-policy { width: 100%; order: 2; }
+  #guest .rd-policy > .rd-section-label { display: none; }
+  #guest .rd-policy .rd-rule { gap: 16px; padding: 13px 0; }
+  #guest .rd-policy .rd-rule:first-of-type { border-top: 0; }
+  #guest .rd-policy h2 { font-size: 22px; }
+  #guest .rd-policy p { font-size: 17px; }
+  #guest .rd-policy .rd-pill { min-width: 96px; padding-left: 10px; padding-right: 10px; font-size: 14px; }
+  #guest .rd-specimens { width: 100%; min-height: 154px; order: 3; }
+  #guest .rd-specimens figure { min-height: 154px; padding: 8px 10px 35px; }
+  #guest .rd-specimens figure.rd-fish, #guest .rd-specimens figure.rd-seahorse { display: flex; }
+  #guest .rd-specimens img { height: 110px; max-width: 100%; }
+  #guest .rd-specimens .rd-seahorse img { max-width: 62px; }
+  #guest .rd-specimens .rd-frog img { max-width: 80px; }
+  #guest .rd-session-area { margin-top: -102px; }
+  #guest .rd-session-area > .rd-schedule-heading { min-height: 66px; padding-top: 2px; margin-bottom: 25px; flex-wrap: wrap; }
+  #guest .rd-schedule-panel.schedule { padding: 0 22px; }
+  #guest .rd-schedule-panel .card.rd-slot { grid-template-columns: minmax(0,1fr) minmax(0,1fr); min-height: 151px; gap: 12px 22px; padding: 15px 0; }
+  #guest .rd-time-range { gap: 4px; }
+  #guest .rd-time-range .time { font-size: 38px; }
+  #guest .rd-time-range .rd-end { font-size: 13px; line-height: 1.2; }
+  #guest .rd-slot-availability { grid-column: 2; grid-row: auto; align-items: flex-end; }
+  #guest .rd-slot-availability .remain { justify-content: flex-end; }
+  #guest .rd-meter { width: 100%; }
+  #guest .rd-schedule-panel button.rd-action { grid-column: 1/-1; min-height: 50px; padding: 10px 14px; font-size: 23px; }
+  #guest .rd-schedule-panel .slot-note { margin-top: -6px; }
+  body[data-screen="guest"][data-guest-step="slots"] footer { max-width: 1366px; padding-left: 44px; padding-right: 44px; }
+  #guest-form .rd-details-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 36px; }
+  #guest-form .rd-details-grid .rd-safety { padding-top: 0; border-top: 0; }
+  .rd-ticket .rd-ticket-layout { grid-template-columns: minmax(0,.43fr) minmax(0,.57fr); gap: 32px; align-items: start; }
+  .rd-ticket .rd-number-header { padding: 22px 24px 0; }
+  .rd-ticket .rd-number-header > div:first-child, .rd-ticket .rd-number-header > span:first-child { font-size: 16px; }
+  .rd-ticket .rd-status { font-size: 22px; min-height: 48px; padding: 7px 18px; gap: 8px; }
+  .rd-ticket .rd-number-board .code { font-size: clamp(150px,15.4vw,210px); padding: 0 18px; }
+  .rd-ticket .rd-number-board .code.is-long { font-size: clamp(60px,7.5vw,102px); padding-top: 16px; padding-bottom: 16px; }
+  .rd-ticket .rd-ticket-facts { margin-top: 14px; }
+  .rd-ticket dl.rd-ticket-facts { display: flex; flex-direction: column; }
+  .rd-ticket dl.rd-ticket-facts > div { border-left: 0; border-top: 1px solid var(--rd-line); padding: 15px 24px; gap: 18px; }
+  .rd-ticket dl.rd-ticket-facts > div:first-child { padding-left: 24px; border-top: 0; }
+  .rd-ticket .rd-ticket-facts dt { width: 56px; }
+  .rd-ticket .rd-ticket-notes p { font-size: 18px; }
+  .rd-ticket .ticket-payment.rd-payment { padding-top: 0; border-top: 0; }
+  .rd-ticket .rd-payment-heading { display: block; padding-bottom: 20px; border-bottom: 1px solid var(--rd-rule); }
+  .rd-ticket .rd-payment-heading h2 { font-size: 31px; }
+  .rd-ticket .rd-payment-heading .payment-total { margin-top: 14px; }
+  .rd-ticket .rd-payment-heading .payment-total b { font-size: 44px; }
+  .rd-ticket .rd-payment-body { display: grid; grid-template-columns: minmax(0,.85fr) minmax(0,1.1fr); gap: 22px; padding-top: 22px; }
+  .rd-ticket .rd-qr-frame { padding: 12px; }
+  .rd-ticket .rd-payment-steps ol > li { font-size: 19px; gap: 10px; }
+  .rd-ticket .payment-message { padding: 13px 14px; }
+  .rd-ticket .payment-message > strong { font-size: 19px; }
+  .rd-ticket .payment-message .message-number { font-size: 32px; }
+  .rd-ticket .rd-ticket-return { margin-top: 22px; }
+  .rd-ticket .rd-settled-panel { padding: 24px 28px; }
+  .rd-ticket .rd-settled-panel h2, .rd-ticket .rd-settled-panel h1 { font-size: 32px; }
+}
+
+/* Compact tablet and phone: retain the full flow and allow normal scrolling. */
+@media (max-width:899px) {
+  body[data-screen="guest"] #kiosk-header, body[data-screen="ticket"] #kiosk-header { padding: 22px 28px 16px; gap: 24px; }
+  body[data-screen="guest"] main, body[data-screen="ticket"] main { padding: 22px 28px 28px; }
+  body[data-screen="guest"][data-guest-step="slots"] #kiosk-header::after { left: 28px; right: 28px; }
+  .rd-header-info { gap: 22px; }
+  .rd-header-info strong { font-size: 19px; }
+  #guest .rd-intro { grid-template-columns: minmax(0,1fr) 180px; gap: 22px; }
+  #guest .rd-hero h1 { font-size: 44px; }
+  #guest dl.rd-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #guest dl.rd-facts > div:nth-child(3) { padding-left: 0; border-left: 0; border-top: 1px solid var(--rd-line); }
+  #guest dl.rd-facts > div:nth-child(4) { border-top: 1px solid var(--rd-line); }
+  #guest .rd-specimens figure { min-height: 270px; }
+  #guest .rd-policy .rd-rule { gap: 16px; }
+  #guest .rd-policy h2 { font-size: 23px; }
+  #guest .rd-policy p { font-size: 17px; }
+  #guest .rd-schedule-panel .card.rd-slot { grid-template-columns: 145px minmax(0,1fr) 170px; gap: 12px; }
+  #guest .rd-time-range .time { font-size: 38px; }
+  #guest .rd-schedule-panel button.rd-action { font-size: 21px; min-height: 58px; }
+  #guest .rd-slot-availability .remain b { font-size: 30px; }
+  #guest-form .rd-selected-summary { gap: 16px; padding: 18px; }
+  #guest-form .rd-selected-time b { font-size: 42px; }
+  #guest-form .rd-selected-time .rd-end { font-size: 18px; margin-left: 8px; }
+  #guest-form .rd-selected-time .rd-duration { display: none; }
+  #guest-form .rd-selected-summary button.secondary { font-size: 16px; padding: 10px 16px; }
+  #guest-form .rd-footer-actions { gap: 18px; }
+  #guest-form .rd-footer-actions button { padding: 15px 25px; font-size: 23px; }
+  .rd-ticket .rd-payment-heading h2 { font-size: 29px; }
+  .rd-ticket .rd-payment-body { grid-template-columns: minmax(220px,.9fr) minmax(0,1.2fr); gap: 22px; }
+  .rd-ticket .rd-payment-steps ol > li { font-size: 19px; }
+  .rd-ticket dl.rd-ticket-facts > div { padding: 14px 18px; gap: 6px; }
+  .rd-ticket dl.rd-ticket-facts > div:first-child { padding-left: 18px; }
+  .rd-ticket .rd-ticket-facts dd b { font-size: 24px; }
+  .rd-ticket .rd-ticket-facts dd .rd-end, .rd-ticket .rd-ticket-facts dd > span { display: block; font-size: 16px; margin-top: 4px; }
+  .rd-ticket .rd-ticket-return { flex-wrap: wrap; }
+  .rd-ticket .rd-return-copy { flex-basis: 100%; }
+  .rd-ticket .rd-ticket-return button { flex: 1; }
+  body[data-screen="guest"][data-guest-step="slots"] footer { padding: 0 28px 24px; }
+}
+@media (max-width:600px) {
+  body[data-screen="guest"] #kiosk-header, body[data-screen="ticket"] #kiosk-header { padding: 20px 18px 14px; gap: 18px; align-items: flex-end; }
+  body[data-screen="guest"] #kiosk-header .event-logo, body[data-screen="ticket"] #kiosk-header .event-logo, body[data-screen="guest"][data-guest-step="slots"] #kiosk-header .event-logo { width: 90px; }
+  body[data-screen="guest"][data-guest-step="slots"] #kiosk-header::after { left: 18px; right: 18px; }
+  body[data-screen="guest"] main, body[data-screen="ticket"] main { padding: 20px 18px 24px; }
+  .rd-header-info { gap: 16px; }
+  .rd-header-info > div { gap: 3px; }
+  .rd-header-info small, .rd-header-info .rd-info-label { font-size: 10px; }
+  .rd-header-info strong { font-size: 14px; gap: 6px; }
+  .rd-header-info .rd-info-dot { width: 7px; height: 7px; box-shadow: 0 0 0 3px rgba(0,113,165,.15); }
+  body[data-screen="guest"] #header-context:has(.rd-steps), body[data-screen="ticket"] #header-context:has(.rd-steps) { flex-basis: 100%; }
+  body[data-screen="guest"] #kiosk-header:has(.rd-steps), body[data-screen="ticket"] #kiosk-header:has(.rd-steps) { flex-wrap: wrap; gap: 16px; }
+  ol.rd-steps { gap: 6px; }
+  .rd-steps li { font-size: 11px; padding-bottom: 7px; gap: 6px; }
+  .rd-steps li > span:first-child { white-space: normal; }
+  .rd-steps li b, .rd-steps .rd-step-number { display: block; font-size: 12px; margin-right: 0; margin-bottom: 3px; }
+  #guest .rd-top-grid { gap: 24px; }
+  #guest .rd-intro { grid-template-columns: minmax(0,1fr); gap: 22px; }
+  #guest .rd-hero h1 { font-size: 35px; line-height: 1.35; }
+  #guest dl.rd-facts { margin-top: 18px; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #guest dl.rd-facts > div { padding-top: 10px; padding-bottom: 11px; }
+  #guest .rd-facts dt { font-size: 13px; }
+  #guest .rd-facts dd { font-size: 17px; }
+  #guest .rd-facts dd b, #guest .rd-facts dd .rd-mono { font-size: 25px; }
+  #guest .rd-specimens { display: none; }
+  .rd-section-label { font-size: 13px; gap: 10px; flex-wrap: wrap; }
+  .rd-section-label > span:first-child { width: 28px; }
+
+  .rd-section-label small { font-size: 12px; }
+  #guest .rd-schedule-heading { flex-wrap: wrap; gap: 6px; }
+  #guest .rd-schedule-heading > p { font-size: 12px; }
+  #guest .rd-policy .rd-rule { display: block; padding: 14px 0; }
+  #guest .rd-policy .rd-pill { min-height: 30px; min-width: 0; margin: 0 0 9px; padding: 3px 11px; font-size: 12px; }
+  #guest .rd-policy .rd-pill::before { width: 7px; height: 7px; }
+  #guest .rd-policy h2 { font-size: 20px; margin-bottom: 7px; line-height: 1.5; }
+  #guest .rd-policy p { font-size: 15px; line-height: 1.7; }
+  #guest .rd-schedule-panel.schedule { padding: 0 16px; border-radius: 18px; }
+  #guest .rd-schedule-panel .card.rd-slot { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; padding: 18px 0; }
+  #guest .rd-time-range .time { font-size: 36px; }
+  #guest .rd-time-range .rd-end { font-size: 13px; }
+  #guest .rd-slot-availability { align-items: flex-end; }
+  #guest .rd-slot-availability .remain { gap: 5px; justify-content: flex-end; font-size: 14px; }
+  #guest .rd-slot-availability .remain b { font-size: 30px; }
+  #guest .rd-meter { gap: 2px; }
+  #guest .rd-meter i { height: 8px; }
+  #guest .rd-low-badge { font-size: 11px; padding: 3px 8px; }
+  #guest .rd-schedule-panel button.rd-action { grid-column: 1/-1; min-height: 52px; font-size: 20px; }
+  #guest .rd-schedule-panel .slot-note { font-size: 14px; }
+  #guest .rd-booking-paused { padding: 16px; font-size: 16px; }
+  #guest .rd-booking-paused h2 { font-size: 25px; }
+  body[data-screen="guest"][data-guest-step="slots"] footer { padding: 0 18px 24px; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+  body[data-screen="guest"][data-guest-step="slots"] footer button.secondary { font-size: 14px; }
+  #guest-form .rd-selected-summary { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 14px; padding: 17px; border-radius: 18px; margin-bottom: 24px; }
+  #guest-form .rd-selected-time small { font-size: 12px; }
+  #guest-form .rd-selected-time b { font-size: 34px; }
+  #guest-form .rd-selected-time .rd-end { display: block; font-size: 15px; margin-left: 0; margin-top: 7px; }
+  #guest-form .rd-selected-remain { font-size: 14px; gap: 4px; }
+  #guest-form .rd-selected-remain b { font-size: 29px; }
+  #guest-form .rd-selected-summary button.secondary { grid-column: 1/-1; min-height: 48px; font-size: 16px; }
+  #guest-form h1.rd-title { font-size: 28px; }
+  #guest-form .rd-form-note { font-size: 16px; line-height: 1.65; }
+  #guest-form .choice.rd-people { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 18px 0 22px; }
+  #guest-form .choice.rd-people button { min-height: 112px; padding: 16px 10px; gap: 10px; border-radius: 16px; }
+  #guest-form .rd-person-count { font-size: 19px; }
+  #guest-form .rd-person-count b { font-size: 42px; }
+  #guest-form .rd-person-price { font-size: 15px; }
+  #guest-form .rd-total { flex-wrap: wrap; gap: 12px; }
+  #guest-form .rd-total-amount { font-size: 16px; gap: 8px; flex-wrap: wrap; }
+  #guest-form .rd-total-amount b { font-size: 36px; }
+  #guest-form .rd-total-amount small { font-size: 14px; }
+  .rd-badge { font-size: 14px; padding: 6px 12px; }
+  #guest-form .rd-path { display: flex; flex-direction: column; gap: 12px; font-size: 15px; }
+  #guest-form ol.rd-path > li { gap: 12px; }
+  #guest-form .rd-path b { font-size: 15px; }
+  #guest-form .rd-safety h2 { font-size: 27px; }
+  #guest-form .rd-safety ol > li { font-size: 17px; gap: 12px; padding: 12px 0; }
+  #guest-form .rd-safety ol > li > span:first-child { font-size: 14px; }
+  #guest-form label.check.rd-check { font-size: 17px; gap: 12px; padding: 14px; }
+  #guest-form label.check.rd-check input { width: 26px; height: 26px; }
+  #guest-form .rd-footer-actions { flex-direction: column; align-items: stretch; gap: 18px; padding-top: 22px; }
+  #guest-form .rd-footer-actions p { font-size: 16px; }
+  #guest-form .rd-footer-actions button { width: 100%; min-height: 64px; padding: 15px 20px; font-size: 22px; }
+  #reservation-review { width: calc(100vw - 28px); max-height: calc(100dvh - 28px); padding: 26px 22px; border-radius: 22px; }
+  #reservation-review .rd-review-title { font-size: 28px; margin-bottom: 20px; }
+  #reservation-review dl.rd-review-table > div { display: block; padding: 14px 0; }
+  #reservation-review .rd-review-table dt { width: auto; font-size: 14px; margin-bottom: 7px; }
+  #reservation-review .rd-review-table dd { font-size: 19px; }
+  #reservation-review .rd-review-table dd b { font-size: 31px; }
+  #reservation-review .rd-review-table dd small { font-size: 15px; }
+  #reservation-review .rd-review-note { font-size: 16px; padding-top: 16px; }
+  #reservation-review .rd-review-actions { flex-direction: column-reverse; gap: 12px; padding-top: 20px; }
+  #reservation-review .rd-review-actions button { flex: auto; min-height: 58px; font-size: 19px; }
+  .rd-ticket .rd-ticket-layout { gap: 24px; }
+  .rd-ticket .rd-number-header { flex-wrap: wrap; padding: 18px 18px 0; gap: 12px; }
+  .rd-ticket .rd-number-header > div:first-child, .rd-ticket .rd-number-header > span:first-child { font-size: 14px; letter-spacing: .07em; }
+  .rd-ticket .rd-number-header small, .rd-ticket .rd-number-header > div > span { font-size: 12px; }
+  .rd-ticket .rd-status { min-height: 38px; font-size: 17px; padding: 6px 12px; gap: 6px; }
+  .rd-ticket .rd-status svg { width: 19px; height: 19px; }
+  .rd-ticket .rd-number-board .code { font-size: clamp(105px,30vw,168px); padding: 12px 14px 0; line-height: 1; }
+  .rd-ticket .rd-number-board .code.is-long { font-size: clamp(44px,14vw,72px); padding: 18px 14px; }
+  .rd-ticket .rd-ticket-facts { margin-top: 12px; }
+  .rd-ticket dl.rd-ticket-facts { display: flex; flex-direction: column; }
+  .rd-ticket dl.rd-ticket-facts > div { flex-wrap: nowrap; gap: 14px; padding: 12px 18px; border-top: 1px solid var(--rd-line); border-left: 0; }
+  .rd-ticket dl.rd-ticket-facts > div:first-child { padding-left: 18px; border-top: 0; }
+  .rd-ticket .rd-ticket-facts dt { width: 42px; font-size: 13px; }
+  .rd-ticket .rd-ticket-facts dd { font-size: 18px; }
+  .rd-ticket .rd-ticket-facts dd b { font-size: 25px; }
+  .rd-ticket .rd-ticket-facts dd .rd-end, .rd-ticket .rd-ticket-facts dd > span { display: inline; font-size: 15px; }
+  .rd-ticket .rd-ticket-notes p { font-size: 16px; line-height: 1.7; }
+  .rd-ticket .rd-payment-heading { display: block; padding-bottom: 16px; }
+  .rd-ticket .rd-payment-heading h2 { font-size: 27px; }
+  .rd-ticket .rd-payment-heading .payment-total { margin-top: 12px; font-size: 16px; }
+  .rd-ticket .rd-payment-heading .payment-total b { font-size: 38px; }
+  .rd-ticket .rd-payment-body { display: flex; flex-direction: column; gap: 22px; }
+  .rd-ticket .rd-qr-frame { width: min(100%,330px); align-self: center; padding: 16px; }
+  .rd-ticket .rd-qr-frame .qr-placeholder { min-height: 240px; }
+  .rd-ticket .rd-payment-steps { width: 100%; }
+  .rd-ticket .rd-payment-steps ol > li { font-size: 18px; gap: 12px; }
+  .rd-ticket .rd-payment-steps ol > li > span:first-child { font-size: 14px; }
+  .rd-ticket .payment-message { padding: 15px 16px; }
+  .rd-ticket .payment-message > strong { font-size: 19px; }
+  .rd-ticket .payment-message p { font-size: 16px; }
+  .rd-ticket .payment-message .message-number { font-size: 34px; }
+  .rd-ticket .rd-ticket-return { display: grid; grid-template-columns: minmax(0,1fr); gap: 14px; margin-top: 24px; padding-top: 20px; }
+  .rd-ticket .rd-return-copy { display: block; }
+  .rd-ticket .rd-return-copy .rd-countdown { display: block; font-size: 32px; margin-bottom: 9px; }
+  .rd-ticket .rd-return-copy p { font-size: 16px; }
+  .rd-ticket .rd-return-copy small { font-size: 13px; }
+  .rd-ticket .rd-ticket-return button { min-height: 54px; width: 100%; font-size: 17px; }
+  .rd-ticket .rd-ticket-return button#ticket-done { min-height: 60px; font-size: 19px; }
+  .rd-ticket .rd-settled-panel, .rd-ticket .rd-settled-panel.is-cancelled { padding: 22px 20px; }
+  .rd-ticket .rd-settled-panel h2, .rd-ticket .rd-settled-panel h1 { font-size: 28px; }
+  .rd-ticket .rd-settled-panel p { font-size: 17px; }
+  .rd-ticket .rd-settled-panel .rd-start-time { font-size: 48px; }
+  .rd-ticket .rd-settled-panel ol { font-size: 17px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  body[data-screen="guest"] main button, body[data-screen="ticket"] main button { transition: none; }
+}
+
+</style>
 </head>
-<body>
+<body class="kiosk-redesign">
 <div id="practice-bar" class="hidden"></div>
-<header><img class="event-logo" src="./tomonsai-logo-2026.jpg" width="181" height="96" alt="稲門祭2026（2026年10月18日）"><small>8号館 B105</small></header>
+<header id="kiosk-header"><img class="event-logo" src="./tomonsai-logo-2026.jpg" width="181" height="96" alt="稲門祭2026（2026年10月18日）"><div id="header-context"></div></header>
 <main>
   <div id="alert" role="alert" class="hidden"></div>
   <section id="guest"></section>
@@ -52,7 +622,7 @@
   <section id="login" class="hidden"></section>
   <section id="admin" class="hidden"></section>
 </main>
-<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v21</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
+<footer><span>操作に困ったときは、スタッフにお声がけください。<small class="app-version">受付アプリ v22</small></span><button id="admin-entry" class="secondary small" type="button">運営者用</button></footer>
 <script>
 (() => {
   'use strict';
@@ -84,7 +654,7 @@
   const stamp=()=>new Date().toISOString();
   const minutes=t=>Number(t.slice(0,2))*60+Number(t.slice(3));
   const defaultData=()=>({version:1,purpose:TEST_MODE?'test':'live',revision:0,nextTicketNumber:1,pin:TEST_MODE?{salt:'00000000000000000000000000000000',hash:'44dec39e77e89b6a807177b97401f4c0240f39e4b2c658b45f45259583143414'}:null,settings:{date:localDay(),price:PRICE,duration:DURATION,open:TEST_MODE,paypayEnabled:true,paypayQrType:'personal',paypayQrHash:null,paypayChecks:{merchant:false,venue:false,paperQr:false,pfb:false},slots:TIMES.map((time,i)=>({id:String(i+1),time,capacity:SLOT_CAP}))},tickets:[]});
-  let data=null,storageReady=false,screen='guest',adminTab='reception',selected=null,participants=1,safetyAcknowledged=false,bookingBusy=false,cashBusy=false,adminActive=false,adminLast=0,adminEpoch=0,shownTicket=null,ticketDeadline=0,ticketTimer=null,loginFails=0,loginLockedUntil=0,qrBusy=false,qrPreviewUrl=null,qrRenderToken=0,paypayReady=TEST_MODE,paymentReadyToken=0,ticketQrSource=null,ticketQrUrl=null,ticketQrToken=0,ticketQrError=null,pendingPaypayFile=null,pendingPaypayKind=null;
+  let data=null,storageReady=false,screen='guest',adminTab='reception',selected=null,guestStep='slots',participants=1,safetyAcknowledged=false,bookingBusy=false,cashBusy=false,adminActive=false,adminLast=0,adminEpoch=0,shownTicket=null,ticketDeadline=0,ticketTimer=null,loginFails=0,loginLockedUntil=0,qrBusy=false,qrPreviewUrl=null,qrRenderToken=0,paypayReady=TEST_MODE,paymentReadyToken=0,ticketQrSource=null,ticketQrUrl=null,ticketQrToken=0,ticketQrError=null,pendingPaypayFile=null,pendingPaypayKind=null;
   let authEpoch=0,loginBusy=false,restoreBusy=false,pendingRestoreFile=null;
   function valid(d){
     if(TEST_MODE?d?.purpose!=='test':d?.purpose!==undefined&&d.purpose!=='live')throw Error('練習用と本番用の記録は相互に復元できません');
@@ -109,7 +679,7 @@
   function update(fn){if(!storageReady)throw Error('保存が使えません');const fresh=read();if(fresh.revision!==data.revision){data=fresh;render();throw Error('別画面で記録が更新されました。内容を確認してやり直してください')};const next=structuredClone(fresh);fn(next);next.revision++;save(next);render()}
   function setAlert(message,kind='notice'){const a=$('alert');a.className=kind==='error'?'notice error':'notice';a.textContent=message;a.scrollIntoView({block:'nearest'})}
   function clearAlert(){$('alert').className='hidden';$('alert').textContent=''}
-  function show(which){authEpoch++;if(screen==='admin'&&which!=='admin')adminEpoch++;if(which!=='admin')clearQrPreview();if(which!=='ticket')clearTicketQr();screen=which;for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==which);$('admin-entry').classList.toggle('hidden',which==='admin'||which==='ticket'||which==='login');render()}
+  function show(which){if(which!=='guest')$('reservation-review')?.close();authEpoch++;if(screen==='admin'&&which!=='admin')adminEpoch++;if(which!=='admin')clearQrPreview();if(which!=='ticket')clearTicketQr();screen=which;for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==which);$('admin-entry').classList.toggle('hidden',which==='admin'||which==='ticket'||which==='login');render()}
   function activeCount(slotId){return data.tickets.filter(t=>t.slotId===slotId&&t.status!=='cancelled')}
   function seatsUsed(slotId){return activeCount(slotId).reduce((n,t)=>n+t.participants,0)}
   function dayUsed(d=data){return d.tickets.filter(t=>t.status!=='cancelled').reduce((n,t)=>n+t.participants,0)}
@@ -135,24 +705,79 @@
   const CASH_GUIDANCE='現金での事前予約はできません。ご希望の回の開始時刻に会場へお越しください。その回に空席がある場合は、現金でお支払いいただき、ご参加いただけます。';
   function guestReason(slot){return reason(slot)||(!paymentReady()?'PayPay予約は停止中':null)}
   function paymentChoices(){return '<h3>お支払い方法</h3><p>事前予約は、<strong>PayPayでの事前支払いのみ</strong>です。</p>'}
-  function renderGuest(){const s=data.settings;const closed=!s.open||!storageReady;const top=closed?'<div class="banner">ただいま新規受付を停止しています。スタッフにお声がけください。</div>':paymentReady()?'':'<div class="banner">PayPay予約は停止中です。スタッフにお声がけください。</div>';
-    const cards=s.slots.map(slot=>{const used=seatsUsed(slot.id),rem=Math.max(0,slot.capacity-used);const why=guestReason(slot);const disabled=!!why||rem===0;const label=disabled?'受付不可':'予約する';return `<div class="card ${selected===slot.id?'selected':''}"><div class="slot-time"><span class="time">${esc(slot.time)}</span><small>開始</small></div><div class="slot-availability"><div class="remain">残り <b>${rem}</b> 名</div></div><button type="button" data-select="${slot.id}" ${disabled?'disabled':''}>${label}</button>${why?`<div class="slot-note tiny muted">${esc(why)}</div>`:''}</div>`}).join('');
-    let form='';const slot=s.slots.find(x=>x.id===selected);if(slot&&!guestReason(slot)){const price=s.price===null?'未設定':yen(s.price);const available=Math.max(0,Math.min(BOOKING_MAX,slot.capacity-seatsUsed(slot.id)));if(available>0&&participants>available)participants=available;const total=s.price===null?'未設定':yen(s.price*participants);form=`<div class="card" id="guest-form"><h2>${esc(slot.time)} の受付内容</h2><p>体験する人数を選択してください。付き添いの方は参加人数に含めません。付き添いの方も制作する場合は参加人数に含めてください。</p><div class="choice" role="group" aria-label="参加人数">${Array.from({length:BOOKING_MAX},(_,i)=>`<button type="button" class="${participants===i+1?'active':'secondary'}" data-people="${i+1}" aria-describedby="participant-availability" ${i+1>available?'disabled':''}>${i+1}名</button>`).join('')}</div><p id="participant-availability" class="tiny muted">1回の予約は最大${BOOKING_MAX}名までです。${available<BOOKING_MAX?`この枠の残りは${available}名です。人数分の空きがある時間をお選びください。`:''}</p>${paymentChoices()}<div class="summary">${participants}名分 ${total} ／ PayPay</div><p class="muted">単価 ${price}。予約番号の発行後、体験前にお支払いください。</p><div class="notice safety-notice"><strong>体験時の注意事項</strong><p>保護者の皆さまも、お子さまと一緒にご確認ください。</p><ul><li>体験では基本的に安全な物質を使用していますが、標本や液体などを口に入れないようお願いいたします。</li><li>液体をこぼした場合などは、スタッフにお知らせください。</li><li>体験中は、スタッフの説明や指示に従ってください。</li></ul></div><label class="check"><input id="safety-check" type="checkbox" ${safetyAcknowledged?'checked':''}><span>上の注意を読みました。参加前にスタッフから直接説明を受けます。</span></label><div class="row" style="margin-top:17px"><button type="button" id="reserve" ${bookingBusy||available<1?'disabled':''}>予約番号を発行</button><button type="button" id="cancel-choice" class="secondary">枠選択に戻る</button></div></div>`}
-    $('guest').innerHTML=`<div class="guest-hero"><h1>学生注目！透明標本の封入体験するよ！</h1></div><div class="workshop-facts"><div class="fact"><span class="fact-label">参加費 / お一人</span><span class="fact-value">1,000<small>円</small></span></div><div class="fact"><span class="fact-label">体験時間</span><span class="fact-value">${DURATION}<small>分</small></span></div><div class="fact"><span class="fact-label">各回の定員</span><span class="fact-value">${SLOT_CAP}<small>名</small></span></div></div>${top}<section class="payment-policy" aria-label="予約と現金受付のご案内"><div class="paypay-rule"><h2>事前予約は、PayPayでの事前支払いのみです</h2><p>お席の予約には、事前にPayPayでのお支払いが必要です。</p></div><div class="cash-rule"><h2>現金払いは、各回に空席がある<span>場合に限ります</span></h2><p id="cash-guidance">${CASH_GUIDANCE}</p></div></section><p class="guest-help">付き添いは最大2名までです。</p><div class="schedule-heading"><h2>空き枠を確認してください</h2><span class="capacity-count">各回20名まで</span></div><div class="schedule">${cards}</div>${form}<p class="guest-help">予約番号は写真に撮るか、紙に控えてください。参加前のお支払い・予約の取消しは、番号をスタッフへお伝えください。</p>`;
+  const rdIcon=(kind='arrow')=>{
+    const paths={arrow:'<path d="M4 12h15M13 6l6 6-6 6"/>',back:'<path d="M20 12H5M11 6l-6 6 6 6"/>',lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',check:'<path d="m5 12 4 4L19 6"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'};
+    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[kind]||paths.arrow}</svg>`;
+  };
+  const rdNumber=n=>new Intl.NumberFormat('ja-JP').format(n);
+  const rdEnd=time=>{const n=(minutes(time)+DURATION)%1440;return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`};
+  const rdClock=left=>`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;
+  const rdSection=label=>`<div class="rd-section-label"><span></span>${label}</div>`;
+  function renderHeader(step=null){
+    document.body.dataset.screen=screen;document.body.dataset.guestStep=guestStep;
+    const context=$('header-context');if(!context)return;
+    if(step){
+      context.innerHTML=`<ol class="rd-steps" aria-label="予約の手順">${['回を選ぶ','人数・注意','確認','番号・支払い'].map((name,i)=>`<li class="${i+1===step?'current':i+1<step?'done':''}" ${i+1===step?'aria-current="step"':''}><span><b>${String(i+1).padStart(2,'0')}</b> ${name}</span><i></i></li>`).join('')}</ol>`;
+    }else{
+      const open=data?.settings.open&&storageReady;
+      context.innerHTML=`<div class="rd-header-info"><div><small>会場</small><strong>8号館 <b class="rd-room">B105</b></strong></div><div><small>${screen==='guest'?'いまの受付':'運営者用'}</small><strong class="${open?'is-open':'is-stopped'}"><i class="rd-info-dot ${open?'':'closed'}"></i>${open?'受付中':'受付停止中'}</strong></div></div>`;
+    }
   }
+  function rdTop(){
+    const s=data.settings,closed=!s.open||!storageReady;
+    const paused=closed?'ただいま新規受付を停止しています。スタッフにお声がけください。':!paymentReady()?'PayPay予約は停止中です。スタッフにお声がけください。':'';
+    const cards=s.slots.map(slot=>{
+      const rem=Math.max(0,slot.capacity-seatsUsed(slot.id)),why=guestReason(slot),disabled=!!why||rem===0;
+      const label=rem===0?'満席':disabled?'受付停止中':'予約する';
+      return `<div class="card rd-slot ${rem===0?'is-full':''}"><div class="rd-time-range"><span class="time">${esc(slot.time)}</span><span class="rd-end">— ${esc(rdEnd(slot.time))}</span></div><div class="rd-slot-availability"><div class="remain">残り <b>${rem}</b> 名${rem>0&&rem<=4?'<span class="rd-low-badge">残りわずか</span>':''}</div><div class="rd-meter" aria-hidden="true">${Array.from({length:SLOT_CAP},(_,i)=>`<i class="${i<rem?'filled':''}"></i>`).join('')}</div></div><button class="rd-action ${disabled?'secondary':''}" type="button" data-select="${slot.id}" aria-label="${esc(slot.time)}の回 ${rem}名空き ${label}" ${disabled?'disabled':''}>${disabled?rdIcon('close'):''}${label}${!disabled?rdIcon():''}</button></div>`;
+    }).join('');
+    return `<div class="rd-top-grid"><div class="rd-intro"><div class="rd-hero"><div class="rd-hero-copy"><h1>学生注目！透明標本の<br>封入体験するよ！</h1><dl class="rd-facts"><div><dt>参加費</dt><dd>1人 <b>1,000</b>円</dd></div><div><dt>体験時間</dt><dd><b>${DURATION}</b>分</dd></div><div><dt>定員</dt><dd>各回 <b>${SLOT_CAP}</b>名</dd></div><div><dt>一度に予約</dt><dd><b>1–4</b>名</dd></div></dl></div></div><div class="rd-specimens"><figure class="rd-fish"><img src="./design-assets/specimen-fish.webp" alt="透明標本の魚" width="640" height="310"><figcaption><span>透明標本</span><span>魚</span></figcaption></figure><figure class="rd-seahorse"><img src="./design-assets/specimen-seahorse.webp" alt="透明標本のタツノオトシゴ" width="314" height="560"><figcaption><span>透明標本</span><span>タツノオトシゴ</span></figcaption></figure><figure class="rd-frog"><img src="./design-assets/specimen-frog.webp" alt="透明標本の写真（カエル）" width="344" height="520"><figcaption><span>透明標本</span><span>カエル</span></figcaption></figure></div>${paused?`<div class="banner rd-booking-paused" role="status">${esc(paused)}</div>`:''}<section class="rd-policy" aria-label="お支払いと付き添い">${rdSection('お支払いと付き添い')}<div class="rd-rule"><span class="rd-pill red">事前予約</span><div><h2>事前予約は、PayPayでの事前支払いのみです</h2><p>この画面で予約し、番号が出たら、ご自身のスマートフォンのPayPayで支払います。</p></div></div><div class="rd-rule"><span class="rd-pill blue">現金</span><div><h2>現金払いは、各回に空席がある場合に限ります</h2><p id="cash-guidance">現金の方は予約せずに、希望する回の開始時刻に会場へお越しください。</p></div></div><div class="rd-rule"><span class="rd-pill">付き添い</span><div><h2>付き添いは最大2名までです</h2><p>付き添いの方も作る場合は、体験する人数に含めてください。</p></div></div></section></div><section class="rd-session-area" aria-label="体験する回"><div class="rd-schedule-heading">${rdSection('体験する回を選ぶ')}<p>「残り」は予約できる人数です</p></div><div class="schedule rd-schedule-panel">${cards}</div></section></div>`;
+  }
+  function rdDetails(slot){
+    const rem=Math.max(0,slot.capacity-seatsUsed(slot.id)),available=Math.min(BOOKING_MAX,rem),why=guestReason(slot),cannot=!!why||participants>available;
+    return `<div id="guest-form"><div class="rd-selected-summary"><div><span class="rd-form-note">選んだ回</span><div class="rd-selected-time"><b>${esc(slot.time)}</b><span class="rd-end">— ${esc(rdEnd(slot.time))}</span><small class="rd-duration">${DURATION}分</small></div></div><div class="rd-selected-remain">残り <b>${rem}</b> 名</div><button type="button" id="cancel-choice" class="secondary">${rdIcon('back')}回を選び直す</button></div><section aria-labelledby="rd-people-title">${rdSection('人数')}<h1 id="rd-people-title" class="rd-title">体験する人数を選んでください</h1><p class="rd-form-note">作る人の人数です。付き添いの方（最大2名）は含めません。付き添いの方も作る場合は、その方も人数に含めてください。</p><div class="choice rd-people" role="group" aria-label="参加人数">${Array.from({length:BOOKING_MAX},(_,i)=>`<button type="button" class="${participants===i+1?'active':'secondary'}" data-people="${i+1}" aria-pressed="${participants===i+1}" aria-describedby="participant-availability" ${i+1>available?'disabled':''}><span class="rd-person-count"><b>${i+1}</b><small>名</small></span><span class="rd-person-price">${rdNumber((i+1)*PRICE)}円</span>${participants===i+1?'<span class="rd-selection-check" aria-hidden="true">✓</span>':''}</button>`).join('')}</div><p id="participant-availability" class="rd-form-note">1回の予約は最大4名までです。${available<BOOKING_MAX?`この枠の残りは${rem}名です。人数分の空きがある時間をお選びください。`:''}</p><div class="summary rd-total"><div class="rd-total-amount"><span>合計</span> <b>${rdNumber(participants*PRICE)}</b> 円 <small>${participants}名 × 1,000円</small></div><span class="rd-badge red">PayPayで支払い</span></div><ol class="rd-path" aria-label="お支払いの流れ"><li><b>01</b><span>予約番号が出る</span></li><li><b>02</b><span>PayPayで支払う</span></li><li><b>03</b><span>スタッフが入金を確認</span></li></ol></section><section class="safety-notice rd-safety" aria-labelledby="rd-safety-title">${rdSection('注意事項')}<h2 id="rd-safety-title" class="rd-title">体験時の注意</h2><ol><li><span>01</span><p>体験では基本的に安全な物質を使用していますが、標本や液体などを口に入れないようお願いいたします。</p></li><li><span>02</span><p>液体をこぼした場合などは、スタッフにお知らせください。</p></li><li><span>03</span><p>体験中は、スタッフの説明や指示に従ってください。</p></li></ol></section><label class="check rd-check"><input id="safety-check" type="checkbox" ${safetyAcknowledged?'checked':''}><span>上の注意事項を読みました。<br>参加する前に、スタッフから直接説明を受けます。</span></label>${why?`<p class="notice error">${esc(why)}。回を選び直すか、スタッフにお知らせください。</p>`:''}<div class="rd-footer-actions"><p>次の画面で内容を確かめてから、<br>予約番号を発行します。</p><button type="button" id="review-reservation" ${!safetyAcknowledged||cannot||bookingBusy?'disabled':''}>内容を確認する ${rdIcon()}</button></div></div>`;
+  }
+  function rdReview(slot){
+    return `<dialog id="reservation-review" aria-labelledby="rd-review-title"><div class="rd-section-label"><span></span>最終確認</div><h2 id="rd-review-title" class="rd-review-title">この内容で予約しますか？</h2><dl class="rd-review-table"><div><dt>体験する回</dt><dd><b>${esc(slot.time)}</b> — ${esc(rdEnd(slot.time))}<small>20分</small></dd></div><div><dt>体験する人数</dt><dd><b>${participants}</b> 名</dd></div><div><dt>お支払い</dt><dd><b>${rdNumber(participants*PRICE)}</b> 円<small>PayPayのみ</small></dd></div></dl><div class="rd-review-note"><strong>番号の発行後に、お支払いください。</strong><p>発行した人数分の席を確保します。スタッフが受取履歴を確認するまで「入金確認待ち」です。</p><p>現金での事前予約はできません。</p></div><div class="rd-review-actions"><button type="button" id="edit-reservation" class="secondary" ${bookingBusy?'disabled':''}>${rdIcon('back')}内容を直す</button><button type="button" id="reserve" ${bookingBusy?'disabled':''}>${bookingBusy?'保存しています…':'予約番号を発行'} ${rdIcon()}</button></div><p class="rd-form-note">${bookingBusy?'保存が終わるまで、そのままお待ちください。':'まだお支払いは完了していません。次の画面でQRをご案内します。'}</p></dialog>`;
+  }
+  function renderGuest(){
+    const slot=data.settings.slots.find(x=>x.id===selected);
+    if(!slot){guestStep='slots';selected=null}
+    if(guestStep==='confirm'&&!bookingBusy&&(!safetyAcknowledged||guestReason(slot)||participants>Math.max(0,slot.capacity-seatsUsed(slot.id)))){
+      guestStep='details';safetyAcknowledged=false;setAlert('受付状況が変わりました。回・人数・注意事項を確認してください。','error');
+    }
+    renderHeader(guestStep==='slots'?null:guestStep==='confirm'?3:2);
+    $('guest').innerHTML=guestStep==='slots'?rdTop():rdDetails(slot)+(guestStep==='confirm'?rdReview(slot):'');
+    const review=$('reservation-review');if(review&&!review.open)review.showModal();
+  }
+  function reviewReservation(){
+    if(bookingBusy)return;clearAlert();
+    if(!safetyAcknowledged){setAlert('注意事項を確認してください','error');$('safety-check')?.focus();return}
+    try{const slot=data.settings.slots.find(x=>x.id===selected);if(!paymentReady())throw Error('PayPay予約は停止中です');bookingOkFor(data,slot,participants);guestStep='confirm';renderGuest()}
+    catch(e){setAlert(e.message,'error')}
+  }
+  function editReservation(){if(bookingBusy)return;guestStep='details';renderGuest();$('review-reservation')?.focus()}
+
   function clearTicketQr(){ticketQrToken++;$('ticket-qr-preview')?.removeAttribute('src');if(ticketQrUrl)URL.revokeObjectURL(ticketQrUrl);ticketQrUrl=null;ticketQrSource=null;ticketQrError=null}
   async function refreshTicketQr(){if(screen!=='ticket'||!shownTicket||shownTicket.status==='cancelled'||shownTicket.payment||shownTicket.paymentChoice!=='paypay')return;const code=shownTicket.code,token=++ticketQrToken;try{let source;if(TEST_MODE)source=PRACTICE_QR;else{const row=await readQr();if(!paypayQrReady(row)||ticketQrType(shownTicket)!==paypayQrType())throw Error('PayPayの設定が変わりました。予約番号をスタッフにお知らせください。');source=row?URL.createObjectURL(row.blob):BUILTIN_QR}if(token!==ticketQrToken||screen!=='ticket'||shownTicket?.code!==code){if(source.startsWith('blob:'))URL.revokeObjectURL(source);return}if(ticketQrUrl)URL.revokeObjectURL(ticketQrUrl);ticketQrUrl=source.startsWith('blob:')?source:null;ticketQrSource=source;renderTicket()}catch(e){if(token===ticketQrToken&&screen==='ticket'&&shownTicket?.code===code){ticketQrError=e.message;renderTicket()}}}
+  function rdTicketReturn(left,settled=false){
+    return `<div class="rd-ticket-return"><div class="rd-return-copy"><span class="rd-countdown" id="countdown-clock">${rdClock(left)}</span><p><strong>あと <span id="countdown">${left}</span> 秒で最初の画面に戻ります</strong><small>${settled?'画面を戻っても、記録は残ります。':'支払いの期限ではありません。戻っても予約の記録は残ります。'}</small></p></div>${!settled?'<button type="button" id="extend" class="secondary">表示を30秒延長</button>':''}<button type="button" id="ticket-done">${settled?'受付画面へ戻る':'番号を控えました'} ${rdIcon()}</button></div>`;
+  }
   function renderTicket(){
-    if(!shownTicket)return;
-    const t=shownTicket,slot=data.settings.slots.find(x=>x.id===t.slotId),left=Math.max(0,Math.ceil((ticketDeadline-Date.now())/1000)),paypay=t.paymentChoice==='paypay',personal=ticketQrType(t)==='personal',amount=yen(t.unitPrice*t.participants);
-    if(t.status==='cancelled'||t.payment){
-      const cancelled=t.status==='cancelled';
-      $('ticket').innerHTML=`<div class="ticket"><h1>${cancelled?'この予約は取消済みです':'入金を確認しました'}</h1><div class="code">${esc(t.code)}</div><div class="when">${esc(slot.time)} 開始 · 所要 ${DURATION} 分</div><p>参加 ${t.participants}名 ／ 参加料金 ${amount}</p><p>${cancelled?(t.payment?'入金記録が残っています。返金についてスタッフへご確認ください。':'この番号での参加枠は確保されていません。'):'お支払いは完了しています。開始時刻に、予約番号をスタッフへお伝えください。'}</p><p>画面は <strong id="countdown">${left}</strong> 秒後に戻ります。</p><button type="button" id="ticket-done">受付画面へ戻る</button></div>`;
+    if(!shownTicket)return;renderHeader(4);
+    const t=shownTicket,slot=data.settings.slots.find(x=>x.id===t.slotId),left=Math.max(0,Math.ceil((ticketDeadline-Date.now())/1000)),paypay=t.paymentChoice==='paypay',personal=ticketQrType(t)==='personal',amount=yen(t.unitPrice*t.participants),settled=t.status==='cancelled'||!!t.payment,cancelled=t.status==='cancelled';
+    const status=cancelled?'取消済み':t.payment?'入金確認済み':'入金確認待ち';
+    const board=`<section class="rd-number-board ${cancelled?'is-cancelled':''}" aria-label="受付番号"><div class="rd-number-header"><div><strong>受付番号</strong><small>この番号を控えてください</small></div><span class="rd-status ${cancelled?'cancelled':t.payment?'paid':'pending'}">${rdIcon(cancelled?'close':t.payment?'check':'lock')}${status}</span></div><div class="code ${t.code.length>5?'is-long':''}">${esc(t.code)}</div><dl class="rd-ticket-facts"><div><dt>回</dt><dd><b>${esc(slot.time)}</b><span class="rd-end"> — ${esc(rdEnd(slot.time))}</span></dd></div><div><dt>人数</dt><dd><b>${t.participants}</b>名</dd></div><div><dt>合計</dt><dd><b>${rdNumber(t.unitPrice*t.participants)}</b>円</dd></div></dl></section>`;
+    if(settled){
+      $('ticket').innerHTML=`<div class="ticket rd-ticket rd-settled"><div class="rd-ticket-layout"><div class="rd-ticket-main">${board}</div><section class="rd-settled-panel ${cancelled?'is-cancelled':''}">${rdSection('予約の状態')}<h1>${cancelled?'この予約は取消済みです':'入金を確認しました'}</h1><p>${cancelled?(t.payment?'入金記録が残っています。返金についてスタッフへご確認ください。':'この番号での参加枠は確保されていません。'):'お支払いは完了しています。開始時刻に、予約番号をスタッフへお伝えください。'}</p>${!cancelled?`<div class="rd-meeting"><span>集合する回</span><strong>${esc(slot.time)} 開始</strong><p>8号館 B105<br>体験時間 ${DURATION}分</p></div><p>参加 ${t.participants}名 ／ 参加料金 ${amount}</p>`:''}<p>変更・お問い合わせは、この受付番号をスタッフへお伝えください。</p></section></div>${rdTicketReturn(left,true)}</div>`;
       return;
     }
-    const payment=paypay?`<section class="ticket-payment"><h2>${personal?'PayPayで送金':'PayPayでお支払い'}</h2><p class="payment-total">${amount}</p>${TEST_MODE?'<p class="notice">練習用QRです。実際のお支払いは不要です。</p>':''}${ticketQrError?`<p class="notice error">${esc(ticketQrError)}</p>`:ticketQrSource?`<img id="ticket-qr-preview" class="payment-qr" src="${esc(ticketQrSource)}" alt="${TEST_MODE?'練習用QRコード':personal?'PayPayのMyコード':'PayPay支払い用QRコード'}">`:'<p id="ticket-qr-loading" class="muted">QRを読み込んでいます…</p>'}<p>ご自身のスマートフォンのPayPayでQRを読み取り、${personal?'送金先を確認し、金額に':''}<strong>合計 ${amount}</strong> を${personal?'入力して送って':'お支払い'}ください。</p>${personal?`<div class="notice payment-message" id="paypay-message-guidance"><strong>送金メッセージに受付番号を入力してください</strong><p>入力する番号：<strong class="message-number">${esc(t.code)}</strong></p><p class="tiny">PayPayのメッセージでこの番号を送ってください。入金の確認に使います。</p></div>`:''}${personal&&t.participants>1&&ticketQrSource?.startsWith('blob:')?`<p class="tiny muted">金額が1,000円から変更できない場合は、1,000円を${t.participants}回送り、各送金のメッセージに同じ受付番号を入れてください。</p>`:''}<p>${personal?'送金':'お支払い'}後、この予約番号をスタッフへ。受領の確認後にご案内します。</p><p class="tiny muted">PayPayを使えない場合は、予約の取消しをスタッフへお伝えください。${CASH_GUIDANCE}</p></section>`:`<section class="ticket-payment"><h2>現金でお支払い</h2><p class="payment-total">${amount}</p><p>体験前に、予約番号を伝えてスタッフへお支払いください。</p><p class="tiny muted">PayPayで既に支払った方は、現金を重ねて支払わずスタッフに確認してください。</p>${paymentReady()?'<button type="button" id="ticket-paypay-switch" class="secondary">PayPayに戻す</button>':''}</section>`;
-    $('ticket').innerHTML=`<div class="ticket"><h1>予約番号を発行しました</h1><p><strong>入金確認待ちです。</strong><br>未払いの方は、下の案内からお支払いください。<br>お支払い済みの方は、再度支払わず番号をスタッフへお伝えください。</p><div class="code">${esc(t.code)}</div><div class="when">${esc(slot.time)} 開始 · 所要 ${DURATION} 分</div><p>参加 ${t.participants}名 ／ 参加料金 ${amount}</p>${payment}<p>画面は <strong id="countdown">${left}</strong> 秒後に戻ります。予約の記録は残ります。</p><div class="row" style="justify-content:center"><button type="button" id="extend" class="secondary">表示を30秒延長</button><button type="button" id="ticket-done">番号を控えました</button></div></div>`;
+    const qr=TEST_MODE?'<p class="notice rd-practice-qr">練習用QRです。実際のお支払いは不要です。</p>':'';
+    const qrImage=ticketQrError?`<div class="rd-qr-frame"><p class="notice error">${esc(ticketQrError)}</p><p>予約番号は保存されています。スタッフへお知らせください。</p></div>`:ticketQrSource?`<div class="rd-qr-frame"><img id="ticket-qr-preview" class="payment-qr" src="${esc(ticketQrSource)}" alt="${TEST_MODE?'練習用QRコード':personal?'PayPayのMyコード':'PayPay支払い用QRコード'}"></div>`:'<div class="rd-qr-frame"><p id="ticket-qr-loading" class="muted">QRを読み込んでいます…</p></div>';
+    const payment=paypay?`<section class="ticket-payment rd-payment" aria-label="PayPayでの支払い">${rdSection('お支払い')}<div class="rd-payment-heading"><h2>PayPayでお支払いください</h2><p class="payment-total">お支払い <b>${rdNumber(t.unitPrice*t.participants)}</b>円</p></div>${qr}<div class="rd-payment-body">${qrImage}<div class="rd-payment-steps"><ol><li><span>01</span><p>ご自身のPayPayアプリで、このQRを読み取る</p></li><li><span>02</span><p>${personal?'送金先を確認し、金額':'金額'} <b>${amount}</b> を${personal?'入力する':'確認する'}</p></li></ol>${personal?`<div class="payment-message" id="paypay-message-guidance"><strong>送金メッセージに受付番号を入力してください</strong><p>入力する番号 <strong class="message-number">${esc(t.code)}</strong></p></div>`:''}<ol start="3"><li><span>03</span><p>${personal?'支払う（送金する）':'支払う'}</p></li></ol><p class="rd-form-note">${personal?'送金':'お支払い'}後、この予約番号をスタッフへ。受領の確認後にご案内します。</p>${personal&&t.participants>1&&ticketQrSource?.startsWith('blob:')?`<p class="tiny muted">金額が1,000円から変更できない場合は、1,000円を${t.participants}回送り、各送金のメッセージに同じ受付番号を入れてください。</p>`:''}<details class="rd-payment-help"><summary>PayPayを使えない場合</summary><p>予約の取消しをスタッフへお伝えください。${CASH_GUIDANCE}</p></details></div></div></section>`:`<section class="ticket-payment rd-payment"><h2>現金でお支払い</h2><p class="payment-total">${amount}</p><p>体験前に、予約番号を伝えてスタッフへお支払いください。</p><p>PayPayで既に支払った方は、現金を重ねて支払わずスタッフに確認してください。</p>${paymentReady()?'<button type="button" id="ticket-paypay-switch" class="secondary">PayPayに戻す</button>':''}</section>`;
+    $('ticket').innerHTML=`<div class="ticket rd-ticket"><h1 class="rd-sr-only">予約番号を発行しました</h1><div class="rd-ticket-layout"><div class="rd-ticket-main">${board}<div class="rd-ticket-notes"><p>入金確認待ちです。PayPayで支払ったあと、スタッフが入金を確認します。お支払い済みの方は、再度支払わず番号をスタッフへお伝えください。</p><p><span aria-hidden="true">${rdIcon('camera')}</span><strong>この画面を写真に撮るか、番号をメモしてください。画面が閉じても、予約は残ります。</strong></p></div></div>${payment}</div>${rdTicketReturn(left)}</div>`;
   }
+
   async function switchTicketPayment(choice){if(!shownTicket||screen!=='ticket')return;try{const row=choice==='paypay'&&!TEST_MODE?await readQr():null;update(d=>{const t=d.tickets.find(x=>x.code===shownTicket.code);if(!t||t.status!=='reserved'||t.payment||t.paymentIntent)throw Error('この予約のお支払い方法は変更できません');if(choice==='cash'&&t.bookingSource==='paypay-reservation')throw Error('予約はPayPay払いのみです。現金は開始時の空席がある場合にスタッフが受け付けます');if(choice==='paypay'&&!TEST_MODE&&!paypayQrReady(row,d))throw Error('PayPayを利用できません。スタッフにお知らせください');t.paypayQrType=ticketQrType(t);t.paymentChoice=choice;if(choice==='paypay')t.paypayQrType=paypayQrType(d)});shownTicket=data.tickets.find(t=>t.code===shownTicket.code);clearTicketQr();renderTicket();if(choice==='paypay')refreshTicketQr()}catch(e){setAlert(e.message,'error')}}
   function renderLogin(){const setup=data.pin===null;$('login').innerHTML=`<div class="card" style="max-width:520px;margin:auto"><h1>${setup?'運営者PINの初期設定':'運営者ログイン'}</h1><p class="muted">${setup?'来場者に端末を渡す前に6桁の数字を設定してください。':'設定・入金確認・取消は運営者だけが操作してください。'}このPINは誤操作防止用で、強い認証ではありません。</p><label class="field">6桁のPIN<input id="pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="6" pattern="[0-9]{6}"></label><div class="row"><button id="pin-submit">${setup?'設定して開く':'開く'}</button><button id="login-cancel" class="secondary">戻る</button></div></div>`}
   function label(t){if(t.status==='cancelled')return t.payment?(t.payment.refundAt?'取消・返金確認済':'取消・返金要確認'):'取消';if(t.status==='pending_paypay')return 'PayPay支払確認待ち';if(t.status==='completed')return '体験完了';if(t.status==='seated')return '着席確認';return t.payment?'入金確認済・予約確定':'支払い待ち'}
@@ -257,15 +882,14 @@
     $('admin').innerHTML=`<div class="admin-shell"><div class="admin-top"><div><h1>運営者画面</h1><span class="intake-state ${s.open?'is-open':''}">${s.open?'受付中':'受付停止中'}${TEST_MODE?' · 練習':''}</span></div><div class="admin-top-actions"><button id="toggle-intake" class="secondary" ${!storageReady?'disabled':''}>${s.open?'受付を止める':'受付を開始'}</button><button id="admin-exit">受付画面に戻る</button></div></div><nav class="admin-tabs" aria-label="運営者メニュー">${tabs.map(([tab,text])=>`<button type="button" data-admin-tab="${tab}" aria-pressed="${adminTab===tab}" class="${adminTab===tab?'active':'secondary'}">${text}</button>`).join('')}</nav><div class="admin-content">${content}</div></div>`;
     if(adminTab==='settings'){refreshQrAdmin();remoteRefreshStatus()}else clearQrPreview();
   }
-  function render(){for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==screen);if(screen==='guest')renderGuest();else if(screen==='ticket')renderTicket();else if(screen==='login')renderLogin();else if(screen==='admin')renderAdmin()}
-  function guestReset(){adminNumber='';adminSlot='';adminStatus='';clearAlert();clearTicketQr();shownTicket=null;selected=null;participants=1;safetyAcknowledged=false;clearInterval(ticketTimer);ticketTimer=null;show('guest');refreshPaymentReady()}
-  function startTicket(t){clearTicketQr();shownTicket=t;ticketDeadline=Date.now()+120000;show('ticket');window.scrollTo({top:0,left:0,behavior:'instant'});if(t.paymentChoice==='paypay')refreshTicketQr();clearInterval(ticketTimer);ticketTimer=setInterval(()=>{if(screen!=='ticket')return;const n=Math.max(0,Math.ceil((ticketDeadline-Date.now())/1000));const el=$('countdown');if(el)el.textContent=n;if(n===0)guestReset()},250)}
+  function render(){renderHeader(screen==='ticket'?4:screen==='guest'&&guestStep!=='slots'?(guestStep==='confirm'?3:2):null);for(const id of ['guest','ticket','login','admin'])$(id).classList.toggle('hidden',id!==screen);if(screen==='guest')renderGuest();else if(screen==='ticket')renderTicket();else if(screen==='login')renderLogin();else if(screen==='admin')renderAdmin()}
+  function guestReset(){adminNumber='';adminSlot='';adminStatus='';clearAlert();clearTicketQr();shownTicket=null;selected=null;guestStep='slots';participants=1;safetyAcknowledged=false;clearInterval(ticketTimer);ticketTimer=null;show('guest');refreshPaymentReady()}
+  function startTicket(t){clearTicketQr();shownTicket=t;ticketDeadline=Date.now()+120000;show('ticket');window.scrollTo({top:0,left:0,behavior:'instant'});if(t.paymentChoice==='paypay')refreshTicketQr();clearInterval(ticketTimer);ticketTimer=setInterval(()=>{if(screen!=='ticket')return;const n=Math.max(0,Math.ceil((ticketDeadline-Date.now())/1000));const el=$('countdown');if(el)el.textContent=n;const clock=$('countdown-clock');if(clock)clock.textContent=rdClock(n);if(n===0)guestReset()},250)}
   async function book(){
-    if(bookingBusy)return;
+    if(bookingBusy||guestStep!=='confirm')return;
     const slot=data.settings.slots.find(x=>x.id===selected),p=participants,choice='paypay';
     if(!safetyAcknowledged){setAlert('注意事項を確認してください','error');return}
-    try{if(!paymentReady())throw Error('PayPay予約は停止中です');bookingOkFor(data,slot,p)}catch(e){setAlert(e.message,'error');return}
-    if(!ask(`${slot.time} 開始・所要 ${DURATION}分\n体験 ${p}名\n参加料金 ${yen(data.settings.price*p)}\nお支払い：${choice==='paypay'?'PayPay':'現金'}\n\n予約番号を発行しますか？ 体験前にお支払いください。`))return;
+    try{if(!paymentReady())throw Error('PayPay予約は停止中です');bookingOkFor(data,slot,p)}catch(e){guestStep='details';renderGuest();setAlert(e.message,'error');window.scrollTo({top:0,left:0,behavior:'instant'});return}
     bookingBusy=true;renderGuest();let code=null,issued;
     try{
       const paymentQr=choice==='paypay'&&!TEST_MODE?await readQr():null;
@@ -282,7 +906,7 @@
       let saved=null;
       try{saved=JSON.parse(localStorage.getItem(KEY)).tickets.find(t=>t.code===code&&t.status==='reserved'&&t.payment===null&&!t.paymentIntent)}catch{}
       if(saved){data=read();startTicket(saved);setAlert('予約番号は保存されています。二重に発行しないでください')}
-      else setAlert(`予約できませんでした：${e.message}`,'error');
+      else {guestStep='details';setAlert(`予約できませんでした：${e.message}`,'error');window.scrollTo({top:0,left:0,behavior:'instant'})}
     }finally{bookingBusy=false;if(screen==='guest')renderGuest()}
   }
   function touchAdmin(){adminLast=Date.now()}
@@ -553,8 +1177,18 @@
     }catch(e){setAlert(`復元できませんでした：${e.message}`,'error')}
     finally{restoreBusy=false}
   }
-  $('guest').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.select){selected=b.dataset.select;participants=1;safetyAcknowledged=false;renderGuest();document.getElementById('guest-form')?.scrollIntoView({behavior:'smooth'})}else if(b.dataset.people){participants=Number(b.dataset.people);renderGuest();document.getElementById('guest-form')?.scrollIntoView({block:'nearest'})}else if(b.id==='cancel-choice'){selected=null;safetyAcknowledged=false;renderGuest()}else if(b.id==='reserve')book()});
-  $('guest').addEventListener('change',e=>{if(e.target.id==='safety-check'){safetyAcknowledged=e.target.checked}});
+  $('guest').addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b||b.disabled)return;
+    if(b.dataset.select){selected=b.dataset.select;guestStep='details';participants=1;safetyAcknowledged=false;clearAlert();renderGuest();window.scrollTo({top:0,left:0,behavior:'instant'})}
+    else if(b.dataset.people){participants=Number(b.dataset.people);renderGuest()}
+    else if(b.id==='cancel-choice'){selected=null;guestStep='slots';safetyAcknowledged=false;clearAlert();renderGuest();window.scrollTo({top:0,left:0,behavior:'instant'})}
+    else if(b.id==='review-reservation')reviewReservation();
+    else if(b.id==='edit-reservation')editReservation();
+    else if(b.id==='reserve')book();
+  });
+  $('guest').addEventListener('change',e=>{if(e.target.id==='safety-check'){safetyAcknowledged=e.target.checked;const b=$('review-reservation');if(b)b.disabled=!safetyAcknowledged||bookingBusy||!!guestReason(data.settings.slots.find(x=>x.id===selected))||participants>Math.max(0,data.settings.slots.find(x=>x.id===selected)?.capacity-seatsUsed(selected))}});
+  $('guest').addEventListener('cancel',e=>{if(e.target.id==='reservation-review'){e.preventDefault();if(!bookingBusy)editReservation()}},true);
+
   $('ticket').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='extend'){ticketDeadline=Math.min(ticketDeadline+30000,Date.now()+180000);renderTicket()}else if(b.id==='ticket-paypay-switch')switchTicketPayment('paypay');else if(b.id==='ticket-done')guestReset()});
   $('admin-entry').addEventListener('click',()=>{clearAlert();show('login')});
   $('login').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='pin-submit')doLogin();else if(b.id==='login-cancel')guestReset()});
